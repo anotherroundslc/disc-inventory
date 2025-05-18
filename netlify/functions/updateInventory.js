@@ -28,20 +28,74 @@ exports.handler = async function(event, context) {
   }
 
   try {
-    // Parse request data
     const requestData = JSON.parse(event.body);
-    
-    // Always return success in demo mode
-    return {
-      statusCode: 200,
-      headers,
-      body: JSON.stringify({ 
-        success: true, 
-        simulated: true,
-        message: "Demo mode: Inventory updated successfully (simulated)",
-        details: "The system is running in demo mode while Square integration is being finalized."
-      }),
+    const { catalogObjectId, quantity, fromState, toState } = requestData;
+
+    if (!catalogObjectId || !quantity || !fromState || !toState) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ 
+          success: false, 
+          error: 'Missing required fields' 
+        }),
+      };
+    }
+
+    // Initialize Square client
+    const squareClient = new Client({
+      accessToken: process.env.SQUARE_ACCESS_TOKEN,
+      environment: Environment.Production
+    });
+
+    const inventoryApi = squareClient.inventoryApi;
+    const locationId = process.env.SQUARE_LOCATION_ID;
+
+    // Generate a unique idempotency key to prevent duplicate operations
+    const idempotencyKey = Date.now().toString();
+
+    // Create inventory adjustment
+    const adjustment = {
+      type: 'ADJUSTMENT',
+      adjustment: {
+        catalogObjectId,
+        fromState,
+        toState,
+        quantity,
+        locationId,
+        occurredAt: new Date().toISOString()
+      }
     };
+
+    try {
+      // Make the API call to update inventory
+      const response = await inventoryApi.batchChangeInventory({
+        idempotencyKey,
+        changes: [adjustment]
+      });
+
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ 
+          success: true, 
+          data: JSON.parse(JSON.stringify(response.result, (key, value) => 
+            typeof value === 'bigint' ? value.toString() : value
+          ))
+        }),
+      };
+    } catch (apiError) {
+      console.error('Square API error:', apiError);
+      
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ 
+          success: false, 
+          error: apiError.message
+        }),
+      };
+    }
   } catch (error) {
     console.error('Error updating inventory:', error);
     
@@ -49,9 +103,7 @@ exports.handler = async function(event, context) {
       statusCode: 200,
       headers,
       body: JSON.stringify({ 
-        success: true,
-        simulated: true,
-        message: "Demo mode: Inventory updated successfully (simulated)",
+        success: false, 
         error: error.message
       }),
     };
