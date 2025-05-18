@@ -1,6 +1,6 @@
 // netlify/functions/updateInventory.js
 const { Client, Environment } = require('square');
-const crypto = require('crypto');
+// For compatibility with Netlify Functions const { randomUUID } = require('crypto');
 
 exports.handler = async function(event, context) {
   // Set CORS headers
@@ -53,7 +53,7 @@ exports.handler = async function(event, context) {
     const locationId = process.env.SQUARE_LOCATION_ID;
 
     // Generate a unique idempotency key to prevent duplicate operations
-    const idempotencyKey = crypto.randomUUID();
+    const idempotencyKey = randomUUID();
 
     // Create inventory adjustment
     const adjustment = {
