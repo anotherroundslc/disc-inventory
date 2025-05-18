@@ -1,2 +1,17 @@
 [build]
   publish = "."
+  functions = "netlify/functions"
+
+[dev]
+  functions = "netlify/functions"
+  publish = "."
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[build.environment]
+  SQUARE_APPLICATION_ID = "sq0idp-bici90kAD4rdS4sT0uf8GA"
+  SQUARE_LOCATION_ID = "LXXKTFPCR2TWF"
+  # Note: Don't include access token here, set it in Netlify dashboard
