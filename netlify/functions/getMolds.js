@@ -35,7 +35,7 @@ exports.handler = async function(event, context) {
       );
 
       // Process the catalog to extract unique molds
-      const molds = processCatalogForMolds(catalogResponse.result.objects || []);
+      const molds = extractMoldsFromCatalog(catalogResponse.result.objects || []);
 
       return {
         statusCode: 200,
@@ -82,26 +82,37 @@ function getDefaultMolds() {
   ];
 }
 
-// Process catalog items to extract unique molds
-function processCatalogForMolds(catalogItems) {
+// Common disc golf vendors
+const knownVendors = [
+  "Innova", "Discraft", "Dynamic Discs", "MVP", "Axiom", "Streamline", 
+  "Latitude 64", "Westside", "Prodigy", "Gateway", "Kastaplast", "Discmania"
+];
+
+// Extract molds from catalog items
+function extractMoldsFromCatalog(catalogItems) {
   // Set to track unique mold names
   const moldNames = new Set();
   // Array to hold mold objects
   const molds = [];
   
-  // Process catalog items to extract molds
+  // Process catalog items
   catalogItems.forEach(item => {
     // Only process items, not categories or other catalog objects
     if (item.type !== 'ITEM' || !item.itemData) {
       return;
     }
     
-    // Get mold name from custom attribute or use item name
-    const moldName = getCustomAttribute(item.itemData.customAttributeValues, 'mold') || 
-                    item.itemData.name;
+    // Item name is likely to be the mold
+    const moldName = item.itemData.name;
     
-    // Get vendor from custom attribute or use default
-    const vendor = getCustomAttribute(item.itemData.customAttributeValues, 'vendor') || 'Unknown';
+    // Determine vendor from name
+    let vendor = "Unknown";
+    for (const knownVendor of knownVendors) {
+      if (moldName.includes(knownVendor)) {
+        vendor = knownVendor;
+        break;
+      }
+    }
     
     // If this is a new mold, add it to the results
     if (moldName && !moldNames.has(moldName)) {
@@ -122,12 +133,4 @@ function processCatalogForMolds(catalogItems) {
   }
   
   return molds;
-}
-
-// Helper function to extract custom attributes
-function getCustomAttribute(customAttributeValues, attributeName) {
-  if (!customAttributeValues) return null;
-  
-  const attribute = customAttributeValues[attributeName];
-  return attribute ? attribute.stringValue : null;
 }
