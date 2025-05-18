@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Auth Callback</title>
+  <style>
+    body { font-family: Arial; max-width: 800px; margin: 0 auto; padding: 20px; }
+    .container { background: #f5f5f5; padding: 20px; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>OAuth Callback Received!</h1>
+    <p>Code received from Square. In a full implementation, we would exchange this for an access token.</p>
+    
+    <div id="result"></div>
+  </div>
+  
+  <script>
+    // Get code from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+    const error = urlParams.get('error');
+    
+    if (code) {
+      document.getElementById('result').innerHTML = `
+        <p>Success! Authorization code: <code>${code}</code></p>
+        <p>This confirms the OAuth flow is working correctly.</p>
+      `;
+    } else if (error) {
+      document.getElementById('result').innerHTML = `
+        <p>Error: ${error}</p>
+        <p>Description: ${urlParams.get('error_description')}</p>
+      `;
+    } else {
+      document.getElementById('result').innerHTML = `<p>No code or error received.</p>`;
+    }
+  </script>
+</body>
+</html>
