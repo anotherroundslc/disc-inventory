@@ -620,26 +620,56 @@
     
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
+  // Force live mode
+  setLiveMode();
+  
+  // Use known location ID
+  setDefaultLocation();
+  
+  // Load data from Square
+  loadInventoryData();
+  
+  // Load settings
+  loadSettings();
+  
+  // Set up event listeners
+  setupEventListeners();
+});
+
+// Function to set live mode
+function setLiveMode() {
   // Set live mode indicator
-  document.querySelector('.demo-badge').textContent = 'Live Mode';
-  document.querySelector('.demo-badge').style.backgroundColor = '#4CAF50';
+  const demoBadge = document.querySelector('.demo-badge');
+  if (demoBadge) {
+    demoBadge.textContent = 'Live Mode';
+    demoBadge.style.backgroundColor = '#4CAF50';
+  }
   
   // Update info message
-  document.querySelector('.message.info').innerHTML = `
-    <p><strong>Live Mode Active</strong> - This version is connected to your Square account.
-    Inventory data is loaded from Square and updates will affect your actual inventory.</p>
-  `;
+  const infoMessage = document.querySelector('.message.info');
+  if (infoMessage) {
+    infoMessage.innerHTML = `
+      <p><strong>Live Mode Active</strong> - This version is connected to your Square account.
+      Inventory data is loaded from Square and updates will affect your actual inventory.</p>
+    `;
+  }
   
-  // Always use the known location ID
+  // Save mode to localStorage
+  localStorage.setItem('app_mode', 'live');
+}
+
+// Function to set default location
+function setDefaultLocation() {
   state.locationId = "LXXKTFPCR2TWF";
   state.locationName = "Another Round Disc Golf Salt Lake City";
   
-  // Save location
+  // Save location to localStorage
   localStorage.setItem('demo_location_id', state.locationId);
   localStorage.setItem('demo_location_name', state.locationName);
   
   // Show app content directly
   showAppContent();
+}
   
   // Load data from Square
   loadInventoryData();
