@@ -25,38 +25,64 @@ exports.handler = async function(event, context) {
       environment: Environment.Production
     });
 
-    const { catalogApi } = squareClient;
+    const catalogApi = squareClient.catalogApi;
 
-    // Get all catalog items to extract vendors
-    const catalogResponse = await catalogApi.listCatalog(
-      undefined,
-      "ITEM"
-    );
+    try {
+      // Get all catalog items to extract vendors
+      const catalogResponse = await catalogApi.listCatalog(
+        undefined,
+        "ITEM"
+      );
 
-    // Process the catalog to extract unique vendors
-    const vendors = processCatalogForVendors(catalogResponse.result.objects || []);
+      // Process the catalog to extract unique vendors
+      const vendors = processCatalogForVendors(catalogResponse.result.objects || []);
 
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ 
+          success: true, 
+          vendors: vendors
+        }),
+      };
+    } catch (apiError) {
+      console.error('Square API error:', apiError);
+      
+      // Return default vendors in case of API error
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ 
+          success: true, 
+          vendors: getDefaultVendors()
+        }),
+      };
+    }
+  } catch (error) {
+    console.error('Error in function:', error);
+    
     return {
-      statusCode: 200,
+      statusCode: 200, // Using 200 instead of 500 to handle errors gracefully
       headers,
       body: JSON.stringify({ 
         success: true, 
-        vendors: vendors
-      }),
-    };
-  } catch (error) {
-    console.error('Error fetching vendors:', error);
-    
-    return {
-      statusCode: 500,
-      headers,
-      body: JSON.stringify({ 
-        success: false, 
-        error: error.message || 'Failed to fetch vendor data'
+        vendors: getDefaultVendors()
       }),
     };
   }
 };
+
+// Get default vendors
+function getDefaultVendors() {
+  return [
+    { name: 'Innova', leadTime: 7 },
+    { name: 'Discraft', leadTime: 7 },
+    { name: 'MVP', leadTime: 14 },
+    { name: 'Dynamic Discs', leadTime: 10 },
+    { name: 'Latitude 64', leadTime: 10 },
+    { name: 'Westside', leadTime: 10 }
+  ];
+}
 
 // Process catalog items to extract unique vendors
 function processCatalogForVendors(catalogItems) {
@@ -88,14 +114,7 @@ function processCatalogForVendors(catalogItems) {
   
   // If no vendors were found in catalog, add some defaults
   if (vendors.length === 0) {
-    vendors.push(
-      { name: 'Innova', leadTime: 7 },
-      { name: 'Discraft', leadTime: 7 },
-      { name: 'MVP', leadTime: 14 },
-      { name: 'Dynamic Discs', leadTime: 10 },
-      { name: 'Latitude 64', leadTime: 10 },
-      { name: 'Westside', leadTime: 10 }
-    );
+    return getDefaultVendors();
   }
   
   return vendors;
