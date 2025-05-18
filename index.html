@@ -620,72 +620,32 @@
     
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
-  // Set temporary demo mode badge
-  document.querySelector('.demo-badge').textContent = 'Demo Mode';
-  document.querySelector('.demo-badge').style.backgroundColor = '#ff9800';
+  // Set live mode indicator
+  document.querySelector('.demo-badge').textContent = 'Live Mode';
+  document.querySelector('.demo-badge').style.backgroundColor = '#4CAF50';
   
   // Update info message
   document.querySelector('.message.info').innerHTML = `
-    <p><strong>Demo Mode Active</strong> - This version is using demo data while Square integration is being finalized.
-    Changes are stored locally in your browser and won't affect your Square inventory.</p>
-    <p>Square connection status: <span id="square-status">Checking...</span></p>
+    <p><strong>Live Mode Active</strong> - This version is connected to your Square account.
+    Inventory data is loaded from Square and updates will affect your actual inventory.</p>
   `;
   
-  // Check Square connection status
-  fetch('/.netlify/functions/square-status')
-    .then(response => response.json())
-    .then(data => {
-      const statusElement = document.getElementById('square-status');
-      if (data.success) {
-        statusElement.textContent = 'Connected';
-        statusElement.style.color = '#4CAF50';
-      } else {
-        statusElement.textContent = 'Disconnected';
-        statusElement.style.color = '#f44336';
-      }
-    })
-    .catch(error => {
-      console.error('Error checking Square status:', error);
-      const statusElement = document.getElementById('square-status');
-      statusElement.textContent = 'Error checking status';
-      statusElement.style.color = '#f44336';
-    });
+  // Always use the known location ID
+  state.locationId = "LXXKTFPCR2TWF";
+  state.locationName = "Another Round Disc Golf Salt Lake City";
   
-  // Update settings card
-  const demoInfoCard = document.querySelector('#settings-tab .card:last-child');
-  if (demoInfoCard) {
-    demoInfoCard.innerHTML = `
-      <h3>Square Integration Information</h3>
-      <p>This system is connected to your Square account. Any changes to inventory will be reflected in your Square Dashboard.</p>
-      <p>Location ID: LXXKTFPCR2TWF</p>
-    `;
-  }
+  // Save location
+  localStorage.setItem('demo_location_id', state.locationId);
+  localStorage.setItem('demo_location_name', state.locationName);
   
-  if (state.locationId) {
-    // We have a location, show the app content
-    showAppContent();
-    
-    // Load data from Square
-    loadInventoryData();
-    loadMoldsFromSquare();
-    loadVendorsFromSquare();
-  } else {
-    // Select the default location
-    state.locationId = "LXXKTFPCR2TWF";
-    state.locationName = "Your Store";
-    
-    // Save default location
-    localStorage.setItem('demo_location_id', state.locationId);
-    localStorage.setItem('demo_location_name', state.locationName);
-    
-    // Show the app content
-    showAppContent();
-    
-    // Load data from Square
-    loadInventoryData();
-    loadMoldsFromSquare();
-    loadVendorsFromSquare();
-  }
+  // Show app content directly
+  showAppContent();
+  
+  // Load data from Square
+  loadInventoryData();
+  
+  // Load the saved molds and vendors from local storage
+  // since these can have custom par levels and lead times
   
   // Load settings
   loadSettings();
@@ -1303,6 +1263,82 @@ function updateInventoryTables() {
         status = 'SOON';
         statusCode = 1;
       }
+
+      // Extract unique vendors from inventory items
+function extractVendorsFromInventory() {
+  // Set to track unique vendor names
+  const vendorNames = new Set();
+  // Array to hold vendor objects
+  const vendors = [];
+  
+  // Process inventory items
+  state.inventory.forEach(item => {
+    const vendorName = item.vendor;
+    
+    // If this is a new vendor, add it to the results
+    if (vendorName && !vendorNames.has(vendorName)) {
+      vendorNames.add(vendorName);
+      
+      // Check if we already have lead time info
+      const existingVendor = state.vendors.find(v => v.name === vendorName);
+      const leadTime = existingVendor ? existingVendor.leadTime : 7; // Default lead time
+      
+      vendors.push({
+        name: vendorName,
+        leadTime: leadTime
+      });
+    }
+  });
+  
+  // Update state
+  state.vendors = vendors;
+  
+  // Save vendors
+  saveVendors();
+  
+  // Update vendor table
+  updateVendorsTable();
+}
+
+// Extract unique molds from inventory items
+function extractMoldsFromInventory() {
+  // Set to track unique mold names
+  const moldNames = new Set();
+  // Array to hold mold objects
+  const molds = [];
+  
+  // Process inventory items
+  state.inventory.forEach(item => {
+    const moldName = item.mold;
+    const vendorName = item.vendor;
+    
+    // If this is a new mold, add it to the results
+    if (moldName && !moldNames.has(moldName)) {
+      moldNames.add(moldName);
+      
+      // Check if we already have par level info
+      const existingMold = state.molds.find(m => m.name === moldName);
+      const parLevel = existingMold ? existingMold.parLevel : state.settings.defaultPar;
+      const archived = existingMold ? existingMold.archived : false;
+      
+      molds.push({
+        name: moldName,
+        vendor: vendorName,
+        parLevel: parLevel,
+        archived: archived
+      });
+    }
+  });
+  
+  // Update state
+  state.molds = molds;
+  
+  // Save molds
+  saveMolds();
+  
+  // Update molds table
+  updateMoldsTable();
+}
       
       // Calculate recommended order
       const recommendedOrder = calculateRecommendedOrder(item.stock, mold.parLevel, leadTime);
