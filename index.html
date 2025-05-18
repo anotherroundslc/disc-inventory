@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Disc Golf Inventory Manager</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+    .container {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    h1, h2, h3 {
+      color: #333;
+    }
+    .btn {
+      background-color: #1a73e8;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      text-decoration: none;
+      display: inline-block;
+    }
+    .btn:hover {
+      background-color: #1557b0;
+    }
+    .hidden {
+      display: none;
+    }
+    #loading {
+      text-align: center;
+      margin: 20px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Disc Golf Inventory Manager</h1>
+    <p>Connect to your Square account to manage your disc golf inventory.</p>
+    
+    <div id="auth-section">
+      <p>Click the button below to connect your Square account:</p>
+      <a href="#" id="connect-btn" class="btn">Connect to Square</a>
+    </div>
+    
+    <div id="loading" class="hidden">
+      <p>Connecting to Square...</p>
+    </div>
+    
+    <div id="app-section" class="hidden">
+      <h2>Welcome to your Inventory Manager!</h2>
+      <p>Your Square account is connected. The full functionality will be available soon.</p>
+      
+      <div>
+        <h3>Next Steps:</h3>
+        <ul>
+          <li>View your current inventory</li>
+          <li>Set up mold recognition patterns</li>
+          <li>Configure vendor lead times</li>
+          <li>Set par levels for each mold</li>
+        </ul>
+      </div>
+      
+      <p>Stay tuned for updates!</p>
+    </div>
+  </div>
+  
+  <script>
+    // Simple script to simulate authentication for now
+    document.getElementById('connect-btn').addEventListener('click', function(e) {
+      e.preventDefault();
+      
+      // Show loading message
+      document.getElementById('auth-section').classList.add('hidden');
+      document.getElementById('loading').classList.remove('hidden');
+      
+      // Simulate API connection delay
+      setTimeout(function() {
+        document.getElementById('loading').classList.add('hidden');
+        document.getElementById('app-section').classList.remove('hidden');
+      }, 2000);
+    });
+  </script>
+</body>
+</html>
