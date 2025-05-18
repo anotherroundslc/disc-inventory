@@ -620,15 +620,36 @@
     
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
-  // Remove demo mode indicator
-  document.querySelector('.demo-badge').textContent = 'Live Mode';
-  document.querySelector('.demo-badge').style.backgroundColor = '#4CAF50';
+  // Set temporary demo mode badge
+  document.querySelector('.demo-badge').textContent = 'Demo Mode';
+  document.querySelector('.demo-badge').style.backgroundColor = '#ff9800';
   
-  // Update demo mode message
+  // Update info message
   document.querySelector('.message.info').innerHTML = `
-    <p><strong>Live Mode Active</strong> - This version is connected to your Square account.
-    All inventory changes will affect your actual inventory data.</p>
+    <p><strong>Demo Mode Active</strong> - This version is using demo data while Square integration is being finalized.
+    Changes are stored locally in your browser and won't affect your Square inventory.</p>
+    <p>Square connection status: <span id="square-status">Checking...</span></p>
   `;
+  
+  // Check Square connection status
+  fetch('/.netlify/functions/square-status')
+    .then(response => response.json())
+    .then(data => {
+      const statusElement = document.getElementById('square-status');
+      if (data.success) {
+        statusElement.textContent = 'Connected';
+        statusElement.style.color = '#4CAF50';
+      } else {
+        statusElement.textContent = 'Disconnected';
+        statusElement.style.color = '#f44336';
+      }
+    })
+    .catch(error => {
+      console.error('Error checking Square status:', error);
+      const statusElement = document.getElementById('square-status');
+      statusElement.textContent = 'Error checking status';
+      statusElement.style.color = '#f44336';
+    });
   
   // Update settings card
   const demoInfoCard = document.querySelector('#settings-tab .card:last-child');
