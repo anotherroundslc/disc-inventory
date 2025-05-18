@@ -1200,23 +1200,28 @@ function loadInventoryData() {
       generateBestSellersReport();
     }
     
-    // Process inventory data
-    function processInventoryData() {
-      // Update molds from inventory data
-      updateMoldsFromInventory();
-      
-      // Update inventory tables
-      updateInventoryTables();
-      
-      // Update molds table
-      updateMoldsTable();
-      
-      // Update vendor table
-      updateVendorsTable();
-      
-      // Update filter dropdowns
-      updateFilterDropdowns();
-    }
+// Process inventory data
+function processInventoryData() {
+  try {
+    // Update molds from inventory data
+    updateMoldsFromInventory();
+    
+    // Update inventory tables
+    updateInventoryTables();
+    
+    // Update molds table
+    updateMoldsTable();
+    
+    // Update vendor table
+    updateVendorsTable();
+    
+    // Update filter dropdowns
+    updateFilterDropdowns();
+  } catch (error) {
+    console.error('Error processing inventory data:', error);
+    alert('Error processing inventory data: ' + error.message);
+  }
+}
     
     // Update molds from inventory data
     function updateMoldsFromInventory() {
