@@ -19,54 +19,26 @@ exports.handler = async function(event, context) {
   }
 
   try {
-    // Initialize Square client with your credentials
-    const squareClient = new Client({
-      accessToken: process.env.SQUARE_ACCESS_TOKEN,
-      environment: Environment.Production
-    });
-
-    const catalogApi = squareClient.catalogApi;
-
-    try {
-      // Get all catalog items to extract vendors
-      const catalogResponse = await catalogApi.listCatalog(
-        undefined,
-        "ITEM"
-      );
-
-      // Process the catalog to extract unique vendors
-      const vendors = extractVendorsFromCatalog(catalogResponse.result.objects || []);
-
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({ 
-          success: true, 
-          vendors: vendors
-        }),
-      };
-    } catch (apiError) {
-      console.error('Square API error:', apiError);
-      
-      // Return default vendors in case of API error
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({ 
-          success: true, 
-          vendors: getDefaultVendors()
-        }),
-      };
-    }
+    // Return default vendors for now
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({ 
+        success: true, 
+        vendors: getDefaultVendors(),
+        mode: "demo"
+      }),
+    };
   } catch (error) {
     console.error('Error in function:', error);
     
     return {
-      statusCode: 200, // Using 200 instead of 500 to handle errors gracefully
+      statusCode: 200,
       headers,
       body: JSON.stringify({ 
         success: true, 
-        vendors: getDefaultVendors()
+        vendors: getDefaultVendors(),
+        error: error.message
       }),
     };
   }
@@ -82,49 +54,4 @@ function getDefaultVendors() {
     { name: 'Latitude 64', leadTime: 10 },
     { name: 'Westside', leadTime: 10 }
   ];
-}
-
-// Common disc golf vendors
-const knownVendors = [
-  "Innova", "Discraft", "Dynamic Discs", "MVP", "Axiom", "Streamline", 
-  "Latitude 64", "Westside", "Prodigy", "Gateway", "Kastaplast", "Discmania"
-];
-
-// Extract vendors from catalog items
-function extractVendorsFromCatalog(catalogItems) {
-  // Set to track unique vendor names
-  const vendorNames = new Set();
-  // Array to hold vendor objects
-  const vendors = [];
-  
-  // Process catalog items
-  catalogItems.forEach(item => {
-    // Only process items, not categories or other catalog objects
-    if (item.type !== 'ITEM' || !item.itemData) {
-      return;
-    }
-    
-    // Determine vendor from name
-    for (const knownVendor of knownVendors) {
-      if (item.itemData.name.includes(knownVendor)) {
-        // If this is a new vendor, add it to the results
-        if (!vendorNames.has(knownVendor)) {
-          vendorNames.add(knownVendor);
-          
-          vendors.push({
-            name: knownVendor,
-            leadTime: 7 // Default lead time, can be overridden by local settings
-          });
-        }
-        break;
-      }
-    }
-  });
-  
-  // If no vendors were found in catalog, add some defaults
-  if (vendors.length === 0) {
-    return getDefaultVendors();
-  }
-  
-  return vendors;
 }
