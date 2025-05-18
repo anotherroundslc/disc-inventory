@@ -924,7 +924,7 @@ function loadLocations() {
       loadInventoryData();
     }
     
-    // Load inventory data from Square API
+// Load inventory data from Square API
 function loadInventoryData() {
   try {
     // Show loading indicators
@@ -943,6 +943,12 @@ function loadInventoryData() {
         if (data.success) {
           // Store the inventory data
           state.inventory = data.inventory;
+          
+          // Update molds from inventory
+          extractMoldsFromInventory();
+          
+          // Update vendors from inventory
+          extractVendorsFromInventory();
           
           // Generate bestsellers based on actual data or estimates
           generateBestSellers();
@@ -969,6 +975,7 @@ function loadInventoryData() {
         reorderContent.innerHTML = `
           <div class="message error">
             <p>Error loading inventory data: ${error.message}</p>
+            <p>Please check your Square connection and try again.</p>
           </div>
         `;
       });
@@ -2083,15 +2090,7 @@ function orderDisc(idOrSku) {
     })
     .catch(error => {
       console.error('Error placing order:', error);
-      
-      // For demo/fallback, still update local data
-      alert(`Demo mode: Order placed for ${orderQuantity} ${disc.name} from ${disc.vendor}`);
-      
-      // Update local inventory count
-      disc.stock += orderQuantity;
-      
-      // Update tables
-      processInventoryData();
+      alert(`Error placing order: ${error.message}`);
     })
     .finally(() => {
       // Restore button state
@@ -2104,16 +2103,6 @@ function orderDisc(idOrSku) {
     console.error('Error ordering disc:', error);
     alert('Error ordering disc: ' + error.message);
   }
-}
-  .catch(error => {
-    console.error('Error placing order:', error);
-    alert(`Error placing order: ${error.message}`);
-  })
-  .finally(() => {
-    // Restore button state
-    orderButton.textContent = originalText;
-    orderButton.disabled = false;
-  });
 }
     
     // Save settings
@@ -2658,6 +2647,129 @@ function processInventoryData() {
       } else {
         console.log("Info message not found");
       }
+    }
+    
+    // Run immediately if document is already loaded
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+      forceLiveMode();
+    } else {
+      // Otherwise wait for DOMContentLoaded
+      document.addEventListener('DOMContentLoaded', forceLiveMode);
+    }
+    
+    // Also run after a delay to ensure it overrides any later scripts
+    setTimeout(forceLiveMode, 1000);
+    setTimeout(forceLiveMode, 3000);
+  })();
+    // Extract unique vendors from inventory items
+function extractVendorsFromInventory() {
+  // Set to track unique vendor names
+  const vendorNames = new Set();
+  // Array to hold vendor objects
+  const vendors = [];
+  
+  // Process inventory items
+  state.inventory.forEach(item => {
+    const vendorName = item.vendor;
+    
+    // If this is a new vendor, add it to the results
+    if (vendorName && !vendorNames.has(vendorName)) {
+      vendorNames.add(vendorName);
+      
+      // Check if we already have lead time info
+      const existingVendor = state.vendors.find(v => v.name === vendorName);
+      const leadTime = existingVendor ? existingVendor.leadTime : 7; // Default lead time
+      
+      vendors.push({
+        name: vendorName,
+        leadTime: leadTime
+      });
+    }
+  });
+  
+  // Update state
+  state.vendors = vendors;
+  
+  // Save vendors
+  saveVendors();
+  
+  // Update vendor table
+  updateVendorsTable();
+}
+
+// Extract unique molds from inventory items
+function extractMoldsFromInventory() {
+  // Set to track unique mold names
+  const moldNames = new Set();
+  // Array to hold mold objects
+  const molds = [];
+  
+  // Process inventory items
+  state.inventory.forEach(item => {
+    const moldName = item.mold;
+    const vendorName = item.vendor;
+    
+    // If this is a new mold, add it to the results
+    if (moldName && !moldNames.has(moldName)) {
+      moldNames.add(moldName);
+      
+      // Check if we already have par level info
+      const existingMold = state.molds.find(m => m.name === moldName);
+      const parLevel = existingMold ? existingMold.parLevel : state.settings.defaultPar;
+      const archived = existingMold ? existingMold.archived : false;
+      
+      molds.push({
+        name: moldName,
+        vendor: vendorName,
+        parLevel: parLevel,
+        archived: archived
+      });
+    }
+  });
+  
+  // Update state
+  state.molds = molds;
+  
+  // Save molds
+  saveMolds();
+  
+  // Update molds table
+  updateMoldsTable();
+}
+<script>
+  // Force live mode regardless of other code
+  (function() {
+    function forceLiveMode() {
+      console.log("Forcing live mode...");
+      
+      // Find and update the demo badge
+      const demoBadge = document.querySelector('.demo-badge');
+      if (demoBadge) {
+        demoBadge.textContent = 'LIVE MODE';
+        demoBadge.style.backgroundColor = '#4CAF50';
+        console.log("Updated demo badge to live mode");
+      } else {
+        console.log("Demo badge not found");
+      }
+      
+      // Update info message
+      const infoMessage = document.querySelector('.message.info');
+      if (infoMessage) {
+        infoMessage.innerHTML = `
+          <p><strong>LIVE MODE ACTIVE</strong> - This version is connected to your Square account.
+          Inventory data is loaded from Square and updates will affect your actual inventory.</p>
+        `;
+        console.log("Updated info message for live mode");
+      } else {
+        console.log("Info message not found");
+      }
+      
+      // Set mode in localStorage
+      localStorage.setItem('app_mode', 'live');
+      localStorage.setItem('demo_location_id', 'LXXKTFPCR2TWF');
+      localStorage.setItem('demo_location_name', 'Another Round Disc Golf Salt Lake City');
+      
+      console.log("Set localStorage values for live mode");
     }
     
     // Run immediately if document is already loaded
