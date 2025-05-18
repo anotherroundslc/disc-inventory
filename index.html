@@ -618,26 +618,60 @@
     const locationSelector = document.getElementById('location-selector');
     const appContent = document.getElementById('app-content');
     
-    // Initialize the application
-    document.addEventListener('DOMContentLoaded', function() {
-      if (state.locationId) {
-        // We have a location, show the app content
-        showAppContent();
-        loadInventoryData();
-      } else {
-        // We need to select a location
-        showLocationSelector();
-      }
-      
-      // Load settings
-      loadSettings();
-      
-      // Set up event listeners
-      setupEventListeners();
-      
-      // Save vendors
-      saveVendors();
-    });
+// Initialize the application
+document.addEventListener('DOMContentLoaded', function() {
+  // Remove demo mode indicator
+  document.querySelector('.demo-badge').textContent = 'Live Mode';
+  document.querySelector('.demo-badge').style.backgroundColor = '#4CAF50';
+  
+  // Update demo mode message
+  document.querySelector('.message.info').innerHTML = `
+    <p><strong>Live Mode Active</strong> - This version is connected to your Square account.
+    All inventory changes will affect your actual inventory data.</p>
+  `;
+  
+  // Update settings card
+  const demoInfoCard = document.querySelector('#settings-tab .card:last-child');
+  if (demoInfoCard) {
+    demoInfoCard.innerHTML = `
+      <h3>Square Integration Information</h3>
+      <p>This system is connected to your Square account. Any changes to inventory will be reflected in your Square Dashboard.</p>
+      <p>Location ID: LXXKTFPCR2TWF</p>
+    `;
+  }
+  
+  if (state.locationId) {
+    // We have a location, show the app content
+    showAppContent();
+    
+    // Load data from Square
+    loadInventoryData();
+    loadMoldsFromSquare();
+    loadVendorsFromSquare();
+  } else {
+    // Select the default location
+    state.locationId = "LXXKTFPCR2TWF";
+    state.locationName = "Your Store";
+    
+    // Save default location
+    localStorage.setItem('demo_location_id', state.locationId);
+    localStorage.setItem('demo_location_name', state.locationName);
+    
+    // Show the app content
+    showAppContent();
+    
+    // Load data from Square
+    loadInventoryData();
+    loadMoldsFromSquare();
+    loadVendorsFromSquare();
+  }
+  
+  // Load settings
+  loadSettings();
+  
+  // Set up event listeners
+  setupEventListeners();
+});
     
     // Show location selector
     function showLocationSelector() {
@@ -789,21 +823,23 @@
       }
     }
     
-    // Load locations (demo version)
-    function loadLocations() {
-      try {
-        const locationSelect = document.getElementById('location-select');
-        locationSelect.innerHTML = '<option value="">Loading locations...</option>';
-        
-        // Simulate API delay
-        setTimeout(() => {
-          // Use demo locations
-          const demoLocations = [
-            { id: 'L1', name: 'Main Store' },
-            { id: 'L2', name: 'Warehouse' }
-          ];
-          
-          state.locations = demoLocations;
+    // Load locations from Square API
+function loadLocations() {
+  try {
+    const locationSelect = document.getElementById('location-select');
+    locationSelect.innerHTML = '<option value="">Loading locations...</option>';
+    
+    // Fetch locations from Square
+    fetch('/.netlify/functions/locations')
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then(data => {
+        if (data.success) {
+          state.locations = data.locations;
           
           // Populate location select
           locationSelect.innerHTML = '<option value="">Select a location...</option>';
@@ -819,14 +855,34 @@
           if (state.locationId) {
             locationSelect.value = state.locationId;
           }
-        }, 500);
-      } catch (error) {
+        } else {
+          throw new Error(data.error || 'Failed to load locations');
+        }
+      })
+      .catch(error => {
         console.error('Error loading locations:', error);
         
-        const locationSelect = document.getElementById('location-select');
         locationSelect.innerHTML = '<option value="">Error loading locations</option>';
-      }
-    }
+        
+        // Default to using the provided location ID
+        const option = document.createElement('option');
+        option.value = "LXXKTFPCR2TWF";
+        option.textContent = "Default Store Location";
+        locationSelect.appendChild(option);
+      });
+  } catch (error) {
+    console.error('Error initiating locations fetch:', error);
+    
+    const locationSelect = document.getElementById('location-select');
+    locationSelect.innerHTML = '<option value="">Error loading locations</option>';
+    
+    // Default to using the provided location ID
+    const option = document.createElement('option');
+    option.value = "LXXKTFPCR2TWF";
+    option.textContent = "Default Store Location";
+    locationSelect.appendChild(option);
+  }
+}
     
     // Select location
     function selectLocation() {
@@ -857,17 +913,28 @@
       loadInventoryData();
     }
     
-    // Load inventory data (demo version)
-    function loadInventoryData() {
-      try {
-        // Show loading indicators
-        document.getElementById('loading-data').classList.remove('hidden');
-        document.getElementById('loading-inventory').classList.remove('hidden');
-        
-        // Simulate API delay
-        setTimeout(() => {
-          // Generate demo inventory data
-          generateDemoData();
+    // Load inventory data from Square API
+function loadInventoryData() {
+  try {
+    // Show loading indicators
+    document.getElementById('loading-data').classList.remove('hidden');
+    document.getElementById('loading-inventory').classList.remove('hidden');
+    
+    // Fetch real inventory data from Square
+    fetch('/.netlify/functions/getInventory')
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then(data => {
+        if (data.success) {
+          // Store the inventory data
+          state.inventory = data.inventory;
+          
+          // Generate bestsellers based on actual data or estimates
+          generateBestSellers();
           
           // Process data for display
           processInventoryData();
@@ -875,9 +942,12 @@
           // Hide loading indicators
           document.getElementById('loading-data').classList.add('hidden');
           document.getElementById('loading-inventory').classList.add('hidden');
-        }, 800);
-      } catch (error) {
-        console.error('Error loading data:', error);
+        } else {
+          throw new Error(data.error || 'Failed to load inventory data');
+        }
+      })
+      .catch(error => {
+        console.error('Error loading inventory data:', error);
         
         // Hide loading indicators
         document.getElementById('loading-data').classList.add('hidden');
@@ -890,8 +960,23 @@
             <p>Error loading inventory data: ${error.message}</p>
           </div>
         `;
-      }
-    }
+      });
+  } catch (error) {
+    console.error('Error initiating data fetch:', error);
+    
+    // Hide loading indicators
+    document.getElementById('loading-data').classList.add('hidden');
+    document.getElementById('loading-inventory').classList.add('hidden');
+    
+    // Show error message
+    const reorderContent = document.getElementById('reorder-content');
+    reorderContent.innerHTML = `
+      <div class="message error">
+        <p>Error loading inventory data: ${error.message}</p>
+      </div>
+    `;
+  }
+}
     
     // Generate demo data
     function generateDemoData() {
@@ -1809,47 +1894,86 @@
     function saveMolds() {
       localStorage.setItem('molds', JSON.stringify(state.molds));
     }
-    
-    // Order disc
-    function orderDisc(sku) {
-      const disc = state.inventory.find(item => item.sku === sku);
-      
-      if (!disc) {
-        alert('Disc not found');
-        return;
-      }
-      
-      // Get vendor
-      const vendor = state.vendors.find(v => v.name === disc.vendor);
-      
-      // Calculate recommended order
-      const mold = state.molds.find(m => m.name === disc.mold);
-      const parLevel = mold ? mold.parLevel : state.settings.defaultPar;
-      const leadTime = vendor ? vendor.leadTime : 7;
-      const recommendedOrder = calculateRecommendedOrder(disc.stock, parLevel, leadTime);
-      
-      // Ask for quantity
-      const quantity = prompt(`Order ${disc.name} from ${disc.vendor}?`, recommendedOrder);
-      
-      if (quantity === null) return;
-      
-      const orderQuantity = parseInt(quantity);
-      
-      if (isNaN(orderQuantity) || orderQuantity <= 0) {
-        alert('Please enter a valid quantity');
-        return;
-      }
-      
-      // Simulate order placement
+    // Order disc - use Square API
+function orderDisc(sku) {
+  const disc = state.inventory.find(item => item.sku === sku);
+  
+  if (!disc) {
+    alert('Disc not found');
+    return;
+  }
+  
+  // Get vendor
+  const vendor = state.vendors.find(v => v.name === disc.vendor);
+  
+  // Calculate recommended order
+  const mold = state.molds.find(m => m.name === disc.mold);
+  const parLevel = mold ? mold.parLevel : state.settings.defaultPar;
+  const leadTime = vendor ? vendor.leadTime : 7;
+  const recommendedOrder = calculateRecommendedOrder(disc.stock, parLevel, leadTime);
+  
+  // Ask for quantity
+  const quantity = prompt(`Order ${disc.name} from ${disc.vendor}?`, recommendedOrder);
+  
+  if (quantity === null) return;
+  
+  const orderQuantity = parseInt(quantity);
+  
+  if (isNaN(orderQuantity) || orderQuantity <= 0) {
+    alert('Please enter a valid quantity');
+    return;
+  }
+  
+  // Show loading indication
+  const orderButton = document.querySelector(`.order-btn[data-sku="${sku}"]`);
+  const originalText = orderButton.textContent;
+  orderButton.textContent = 'Processing...';
+  orderButton.disabled = true;
+
+  // Use Square API to update inventory
+  // This assumes you'd create a purchase order in your real system
+  // For now, we'll just update the inventory count
+  fetch('/.netlify/functions/updateInventory', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      catalogObjectId: disc.id,
+      quantity: String(orderQuantity),
+      fromState: 'NONE',
+      toState: 'IN_STOCK'
+    })
+  })
+  .then(response => {
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+    return response.json();
+  })
+  .then(data => {
+    if (data.success) {
       alert(`Order placed for ${orderQuantity} ${disc.name} from ${disc.vendor}`);
       
-      // In a real implementation, this would create an order in Square
-      // For demo purposes, we'll just simulate a stock increase
+      // Update local inventory count
       disc.stock += orderQuantity;
       
       // Update tables
       processInventoryData();
+    } else {
+      throw new Error(data.error || 'Failed to update inventory');
     }
+  })
+  .catch(error => {
+    console.error('Error placing order:', error);
+    alert(`Error placing order: ${error.message}`);
+  })
+  .finally(() => {
+    // Restore button state
+    orderButton.textContent = originalText;
+    orderButton.disabled = false;
+  });
+}
     
     // Save settings
     function saveSettings() {
@@ -2001,6 +2125,139 @@
       // Show confirmation
       alert('Demo data has been reset successfully');
     }
+    // Load molds from Square
+function loadMoldsFromSquare() {
+  try {
+    fetch('/.netlify/functions/getMolds')
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then(data => {
+        if (data.success) {
+          // Merge molds from Square with local settings
+          mergeMoldsData(data.molds);
+        } else {
+          throw new Error(data.error || 'Failed to load molds');
+        }
+      })
+      .catch(error => {
+        console.error('Error loading molds:', error);
+      });
+  } catch (error) {
+    console.error('Error initiating molds fetch:', error);
+  }
+}
+
+// Merge molds from Square with local settings
+function mergeMoldsData(squareMolds) {
+  // Create a map of existing molds for quick lookup
+  const existingMolds = {};
+  state.molds.forEach(mold => {
+    existingMolds[mold.name] = mold;
+  });
+  
+  // Update molds array with Square data, preserving local settings
+  const updatedMolds = squareMolds.map(squareMold => {
+    const existingMold = existingMolds[squareMold.name];
+    
+    if (existingMold) {
+      // Preserve local settings
+      return {
+        ...squareMold,
+        parLevel: existingMold.parLevel,
+        archived: existingMold.archived
+      };
+    } else {
+      // Use defaults for new molds
+      return squareMold;
+    }
+  });
+  
+  // Add any molds that are in local storage but not in Square
+  // (this handles archived molds that might not be in catalog)
+  state.molds.forEach(localMold => {
+    const exists = updatedMolds.some(mold => mold.name === localMold.name);
+    if (!exists) {
+      updatedMolds.push(localMold);
+    }
+  });
+  
+  // Update state and save
+  state.molds = updatedMolds;
+  saveMolds();
+  
+  // Update UI
+  updateMoldsTable();
+}
+
+// Load vendors from Square
+function loadVendorsFromSquare() {
+  try {
+    fetch('/.netlify/functions/getVendors')
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then(data => {
+        if (data.success) {
+          // Merge vendors from Square with local settings
+          mergeVendorsData(data.vendors);
+        } else {
+          throw new Error(data.error || 'Failed to load vendors');
+        }
+      })
+      .catch(error => {
+        console.error('Error loading vendors:', error);
+      });
+  } catch (error) {
+    console.error('Error initiating vendors fetch:', error);
+  }
+}
+
+// Merge vendors from Square with local settings
+function mergeVendorsData(squareVendors) {
+  // Create a map of existing vendors for quick lookup
+  const existingVendors = {};
+  state.vendors.forEach(vendor => {
+    existingVendors[vendor.name] = vendor;
+  });
+  
+  // Update vendors array with Square data, preserving local settings
+  const updatedVendors = squareVendors.map(squareVendor => {
+    const existingVendor = existingVendors[squareVendor.name];
+    
+    if (existingVendor) {
+      // Preserve local settings
+      return {
+        ...squareVendor,
+        leadTime: existingVendor.leadTime
+      };
+    } else {
+      // Use defaults for new vendors
+      return squareVendor;
+    }
+  });
+  
+  // Add any vendors that are in local storage but not in Square
+  state.vendors.forEach(localVendor => {
+    const exists = updatedVendors.some(vendor => vendor.name === localVendor.name);
+    if (!exists) {
+      updatedVendors.push(localVendor);
+    }
+  });
+  
+  // Update state and save
+  state.vendors = updatedVendors;
+  saveVendors();
+  
+  // Update UI
+  updateVendorsTable();
+}
   </script>
 </body>
 </html>
