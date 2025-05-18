@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Disc Golf Inventory Manager</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -39,12 +40,109 @@
     .btn:hover {
       background-color: #1557b0;
     }
+    .btn-green {
+      background-color: #4CAF50;
+    }
+    .btn-green:hover {
+      background-color: #388E3C;
+    }
+    .btn-red {
+      background-color: #f44336;
+    }
+    .btn-red:hover {
+      background-color: #d32f2f;
+    }
     .hidden {
       display: none !important;
     }
     #loading {
       text-align: center;
       margin: 20px 0;
+    }
+    .spinner {
+      animation: spin 1s linear infinite;
+      display: inline-block;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid #ddd;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    .tab {
+      padding: 10px 20px;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+    }
+    .tab.active {
+      border-bottom: 2px solid #1a73e8;
+      font-weight: bold;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 15px 0;
+    }
+    th, td {
+      text-align: left;
+      padding: 12px;
+      border-bottom: 1px solid #ddd;
+    }
+    th {
+      background-color: #f8f9fa;
+      font-weight: 500;
+    }
+    tr:hover {
+      background-color: #f5f5f5;
+    }
+    .status-urgent {
+      background-color: #f44336;
+      color: white;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+    .status-soon {
+      background-color: #ff9800;
+      color: white;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+    .status-ok {
+      background-color: #4CAF50;
+      color: white;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+    .plastic-badge {
+      display: inline-block;
+      padding: 3px 8px;
+      background-color: #9c27b0;
+      color: white;
+      border-radius: 12px;
+      font-size: 12px;
+    }
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+      margin-bottom: 15px;
+    }
+    .filter-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    input, select {
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
     }
     .message {
       padding: 15px;
@@ -59,14 +157,43 @@
       background-color: #e8f5e9;
       border: 1px solid #c8e6c9;
     }
+    .warning {
+      background-color: #fff8e1;
+      border: 1px solid #ffecb3;
+    }
     .error {
       background-color: #ffebee;
       border: 1px solid #ffcdd2;
     }
+    .card {
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 15px;
+      margin-bottom: 15px;
+    }
+    .form-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+      margin-bottom: 15px;
+      align-items: center;
+    }
+    @media (max-width: 768px) {
+      .tabs {
+        flex-direction: column;
+      }
+      .tab {
+        padding: 10px;
+      }
+      .filters {
+        flex-direction: column;
+        align-items: stretch;
+      }
+    }
   </style>
 </head>
 <body>
-  <!-- Start page - shown when not authenticated -->
+  <!-- Auth Container - Shown when not authenticated -->
   <div class="container" id="auth-container">
     <h1>Disc Golf Inventory Manager</h1>
     <p>Connect to your Square account to manage your disc golf inventory.</p>
@@ -82,21 +209,343 @@
     </p>
   </div>
   
-  <!-- Main app - shown after authentication -->
+  <!-- App Container - Shown after authentication -->
   <div class="container hidden" id="app-container">
     <h1>Disc Golf Inventory Manager</h1>
-    <p>Your Square account is connected!</p>
+    <p>A daily inventory management system for your disc golf shop</p>
     
-    <div class="message success">
-      <p><strong>Success!</strong> You're now connected to Square.</p>
-      <p>Access token: <span id="token-preview"></span></p>
+    <!-- Location Selector -->
+    <div id="location-selector" class="hidden">
+      <div class="message info">
+        <h3>Select Your Store Location</h3>
+        <p>Please select the Square location you want to manage:</p>
+        <div class="form-row">
+          <select id="location-select" style="min-width: 200px;">
+            <option value="">Loading locations...</option>
+          </select>
+          <button id="select-location-btn" class="btn">Select Location</button>
+        </div>
+      </div>
     </div>
     
-    <p>In the full implementation, this would show your inventory data and reorder recommendations.</p>
-    
-    <p>
-      <button id="disconnect-btn" class="btn">Disconnect</button>
-    </p>
+    <!-- Main App Content -->
+    <div id="app-content" class="hidden">
+      <!-- Tab Navigation -->
+      <div class="tabs">
+        <div class="tab active" data-tab="reorder">Reorder Recommendations</div>
+        <div class="tab" data-tab="bestsellers">Best Sellers</div>
+        <div class="tab" data-tab="inventory">Full Inventory</div>
+        <div class="tab" data-tab="molds">Mold Settings</div>
+        <div class="tab" data-tab="vendors">Vendor Settings</div>
+        <div class="tab" data-tab="settings">Settings</div>
+      </div>
+      
+      <!-- Reorder Tab -->
+      <div id="reorder-tab" class="tab-content">
+        <h2>Reorder Recommendations</h2>
+        <p>Based on your turnover rate, vendor lead times, and par levels</p>
+        
+        <div class="filters">
+          <div class="filter-group">
+            <label for="status-filter">Status:</label>
+            <select id="status-filter">
+              <option value="all">All</option>
+              <option value="urgent">Urgent</option>
+              <option value="soon">Order Soon</option>
+              <option value="ok">OK</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label for="vendor-filter">Vendor:</label>
+            <select id="vendor-filter">
+              <option value="all">All Vendors</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label for="plastic-filter">Plastic:</label>
+            <select id="plastic-filter">
+              <option value="all">All Types</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label for="mold-filter">Mold:</label>
+            <select id="mold-filter">
+              <option value="all">All Molds</option>
+            </select>
+          </div>
+          <button id="refresh-data" class="btn">
+            <i class="fas fa-sync-alt"></i> Refresh Data
+          </button>
+        </div>
+        
+        <div id="loading-data" class="hidden">
+          <p style="text-align: center;">
+            <i class="fas fa-spinner spinner"></i> Loading inventory data...
+          </p>
+        </div>
+        
+        <div id="reorder-content">
+          <table id="reorder-table">
+            <thead>
+              <tr>
+                <th>Disc Name</th>
+                <th>Plastic</th>
+                <th>Mold</th>
+                <th>Current Stock</th>
+                <th>Par Level</th>
+                <th>Vendor</th>
+                <th>Lead Time</th>
+                <th>Status</th>
+                <th>Order Qty</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="reorder-body">
+              <!-- Data will be populated here -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+      
+      <!-- Best Sellers Tab -->
+      <div id="bestsellers-tab" class="tab-content hidden">
+        <h2>Best Selling Molds</h2>
+        <p>Track your top-selling discs across different time periods</p>
+        
+        <div class="message warning">
+          <p><strong>Coming Soon:</strong> The Best Sellers analysis is under development and will be available in an upcoming update.</p>
+        </div>
+        
+        <div class="filters">
+          <div class="filter-group">
+            <label for="time-period">Time Period:</label>
+            <select id="time-period" disabled>
+              <option value="day">Today</option>
+              <option value="week">This Week</option>
+              <option value="month" selected>This Month</option>
+              <option value="year">This Year</option>
+              <option value="all">All Time</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label for="bestseller-vendor">Vendor:</label>
+            <select id="bestseller-vendor" disabled>
+              <option value="all">All Vendors</option>
+            </select>
+          </div>
+          <button class="btn" disabled>
+            <i class="fas fa-chart-bar"></i> Generate Report
+          </button>
+        </div>
+      </div>
+      
+      <!-- Full Inventory Tab -->
+      <div id="inventory-tab" class="tab-content hidden">
+        <h2>Full Inventory</h2>
+        <p>View and manage your complete disc inventory</p>
+        
+        <div class="filters">
+          <div class="filter-group">
+            <label for="inventory-search">Search:</label>
+            <input type="text" id="inventory-search" placeholder="Search discs...">
+          </div>
+          <div class="filter-group">
+            <label for="inventory-vendor">Vendor:</label>
+            <select id="inventory-vendor">
+              <option value="all">All Vendors</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label for="inventory-plastic">Plastic:</label>
+            <select id="inventory-plastic">
+              <option value="all">All Types</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label for="inventory-mold">Mold:</label>
+            <select id="inventory-mold">
+              <option value="all">All Molds</option>
+            </select>
+          </div>
+        </div>
+        
+        <div id="loading-inventory" class="hidden">
+          <p style="text-align: center;">
+            <i class="fas fa-spinner spinner"></i> Loading inventory data...
+          </p>
+        </div>
+        
+        <div id="inventory-content">
+          <table id="inventory-table">
+            <thead>
+              <tr>
+                <th>Disc Name</th>
+                <th>SKU</th>
+                <th>Plastic</th>
+                <th>Mold</th>
+                <th>Vendor</th>
+                <th>Current Stock</th>
+                <th>Par Level</th>
+                <th>Price</th>
+              </tr>
+            </thead>
+            <tbody id="inventory-body">
+              <!-- Data will be populated here -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+      
+      <!-- Mold Settings Tab -->
+      <div id="molds-tab" class="tab-content hidden">
+        <h2>Mold Settings</h2>
+        <p>Configure par levels and archive molds you no longer wish to carry</p>
+        
+        <div class="card">
+          <h3>Add New Mold</h3>
+          <div class="form-row">
+            <div>
+              <label for="new-mold-name">Mold Name:</label>
+              <input type="text" id="new-mold-name" placeholder="e.g. Destroyer">
+            </div>
+            <div>
+              <label for="new-mold-vendor">Vendor:</label>
+              <select id="new-mold-vendor"></select>
+            </div>
+            <div>
+              <label for="new-mold-par">Par Level:</label>
+              <input type="number" id="new-mold-par" value="15" min="0" style="width: 60px;">
+            </div>
+            <button id="add-mold-btn" class="btn">Add Mold</button>
+          </div>
+        </div>
+        
+        <div class="card">
+          <h3>Current Molds</h3>
+          <p>Set par levels or archive molds you no longer wish to carry</p>
+          
+          <div class="filters">
+            <div class="filter-group">
+              <label for="mold-search">Search:</label>
+              <input type="text" id="mold-search" placeholder="Search molds...">
+            </div>
+            <div class="filter-group">
+              <label for="mold-vendor-filter">Vendor:</label>
+              <select id="mold-vendor-filter">
+                <option value="all">All Vendors</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label>
+                <input type="checkbox" id="show-archived"> Show Archived
+              </label>
+            </div>
+          </div>
+          
+          <table id="molds-table">
+            <thead>
+              <tr>
+                <th>Mold</th>
+                <th>Vendor</th>
+                <th>Par Level</th>
+                <th>Current Stock</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="molds-body">
+              <!-- Data will be populated here -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+      
+      <!-- Vendor Settings Tab -->
+      <div id="vendors-tab" class="tab-content hidden">
+        <h2>Vendor Settings</h2>
+        <p>Manage vendors and their expected lead times</p>
+        
+        <div class="card">
+          <h3>Add New Vendor</h3>
+          <div class="form-row">
+            <div>
+              <label for="vendor-name">Vendor Name:</label>
+              <input type="text" id="vendor-name" placeholder="e.g. Innova, Discraft">
+            </div>
+            <div>
+              <label for="lead-time">Lead Time (days):</label>
+              <input type="number" id="lead-time" placeholder="7" min="1" style="width: 60px;">
+            </div>
+            <button id="add-vendor-btn" class="btn">Add Vendor</button>
+          </div>
+        </div>
+        
+        <h3>Current Vendors</h3>
+        <table id="vendors-table">
+          <thead>
+            <tr>
+              <th>Vendor</th>
+              <th>Lead Time (days)</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="vendors-body">
+            <!-- Data will be populated here -->
+          </tbody>
+        </table>
+      </div>
+      
+      <!-- Settings Tab -->
+      <div id="settings-tab" class="tab-content hidden">
+        <h2>Settings</h2>
+        
+        <div class="card">
+          <h3>Reorder Thresholds</h3>
+          <p>Configure when to suggest ordering new inventory</p>
+          
+          <div class="form-row">
+            <label for="min-stock">Minimum Stock Level:</label>
+            <input type="number" id="min-stock" min="0" value="3" style="width: 60px;">
+            <span>discs</span>
+          </div>
+          
+          <div class="form-row">
+            <label for="buffer-days">Buffer Days Beyond Lead Time:</label>
+            <input type="number" id="buffer-days" min="0" value="7" style="width: 60px;">
+            <span>days</span>
+          </div>
+          
+          <div class="form-row">
+            <label for="default-par">Default Par Level for New Molds:</label>
+            <input type="number" id="default-par" min="0" value="15" style="width: 60px;">
+            <span>discs</span>
+          </div>
+          
+          <button id="save-settings-btn" class="btn">Save Settings</button>
+        </div>
+        
+        <div class="card">
+          <h3>Data Management</h3>
+          
+          <div class="form-row">
+            <button id="export-data-btn" class="btn">Export All Data</button>
+            <button id="import-data-btn" class="btn">Import Data</button>
+            <input type="file" id="import-file" accept=".json" style="display: none;">
+          </div>
+        </div>
+        
+        <div class="card">
+          <h3>Connection</h3>
+          <p>Your Square account is connected with token: <span id="token-display">...</span></p>
+          <p>Selected location: <span id="location-display">...</span></p>
+          
+          <div class="form-row">
+            <button id="disconnect-btn" class="btn btn-red">Disconnect from Square</button>
+            <button id="change-location-btn" class="btn">Change Location</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
   
   <script>
@@ -107,41 +556,79 @@
       scopes: ['ITEMS_READ', 'INVENTORY_READ', 'ORDERS_READ']
     };
     
+    // Application state
+    const state = {
+      token: localStorage.getItem('square_access_token'),
+      locationId: localStorage.getItem('square_location_id'),
+      locationName: localStorage.getItem('square_location_name'),
+      locations: [],
+      catalog: [],
+      inventory: [],
+      vendors: JSON.parse(localStorage.getItem('vendors')) || [
+        { name: 'Innova', leadTime: 7 },
+        { name: 'Discraft', leadTime: 7 },
+        { name: 'MVP', leadTime: 14 },
+        { name: 'Dynamic Discs', leadTime: 10 },
+        { name: 'Latitude 64', leadTime: 10 },
+        { name: 'Westside', leadTime: 10 }
+      ],
+      molds: JSON.parse(localStorage.getItem('molds')) || [],
+      settings: JSON.parse(localStorage.getItem('settings')) || {
+        minStock: 3,
+        bufferDays: 7,
+        defaultPar: 15
+      },
+      plasticTypes: [
+        'Star', 'Champion', 'DX', 'Pro', 'GStar', 'Halo', 'Blizzard',
+        'ESP', 'Z', 'FLX', 'Titanium', 'Jawbreaker', 'CryZtal',
+        'Neutron', 'Plasma', 'Proton', 'Electron', 'Cosmic',
+        'Gold', 'Opto', 'VIP', 'Tournament', 'Fuzion', 'Lucid'
+      ]
+    };
+    
     // DOM references
     const authContainer = document.getElementById('auth-container');
     const appContainer = document.getElementById('app-container');
-    const connectBtn = document.getElementById('connect-btn');
-    const disconnectBtn = document.getElementById('disconnect-btn');
-    const tokenPreview = document.getElementById('token-preview');
+    const locationSelector = document.getElementById('location-selector');
+    const appContent = document.getElementById('app-content');
     const statusMessage = document.getElementById('status-message');
     
-    // Initialize the app
+    // Initialize the application
     document.addEventListener('DOMContentLoaded', function() {
-      // Check for token in localStorage
-      const token = localStorage.getItem('square_access_token');
-      
-      if (token) {
-        // We're already authenticated
-        showApp(token);
-      } else {
-        // Check for token in URL hash (might be passed back from auth-callback)
-        const hash = window.location.hash.substring(1);
-        if (hash && hash.length > 20) {
-          // Save token and show app
-          localStorage.setItem('square_access_token', hash);
-          showApp(hash);
-          
-          // Clear hash from URL
-          history.replaceState(null, null, ' ');
-        } else {
-          // Not authenticated
-          showAuth();
-        }
+      // Check for token in URL hash (might be passed back from auth-callback)
+      const hash = window.location.hash.substring(1);
+      if (hash && hash.length > 10) {
+        // Save token and clear hash
+        localStorage.setItem('square_access_token', hash);
+        state.token = hash;
+        history.replaceState(null, null, ' ');
       }
       
+      if (state.token) {
+        // We have a token, show the app
+        showApp();
+        
+        if (state.locationId) {
+          // We have a location, show the app content
+          showAppContent();
+          loadInventoryData();
+        } else {
+          // We need to select a location
+          showLocationSelector();
+        }
+      } else {
+        // Not authenticated, show auth page
+        showAuth();
+      }
+      
+      // Load settings
+      loadSettings();
+      
       // Set up event listeners
-      connectBtn.addEventListener('click', connectToSquare);
-      disconnectBtn.addEventListener('click', disconnect);
+      setupEventListeners();
+      
+      // Save vendors
+      saveVendors();
     });
     
     // Show authentication page
@@ -150,14 +637,167 @@
       appContainer.classList.add('hidden');
     }
     
-    // Show the main app
-    function showApp(token) {
+    // Show app container
+    function showApp() {
       authContainer.classList.add('hidden');
       appContainer.classList.remove('hidden');
+    }
+    
+    // Show location selector
+    function showLocationSelector() {
+      locationSelector.classList.remove('hidden');
+      appContent.classList.add('hidden');
+      loadLocations();
+    }
+    
+    // Show main app content
+    function showAppContent() {
+      locationSelector.classList.add('hidden');
+      appContent.classList.remove('hidden');
       
-      // Show token preview (first 5 chars)
-      if (token && token.length > 5) {
-        tokenPreview.textContent = token.substring(0, 5) + '...';
+      // Update location display in settings
+      const locationDisplay = document.getElementById('location-display');
+      if (locationDisplay) {
+        locationDisplay.textContent = state.locationName || state.locationId;
+      }
+      
+      // Update token display in settings
+      const tokenDisplay = document.getElementById('token-display');
+      if (tokenDisplay && state.token) {
+        tokenDisplay.textContent = state.token.substring(0, 5) + '...';
+      }
+    }
+    
+    // Set up event listeners
+    function setupEventListeners() {
+      // Connect button
+      const connectBtn = document.getElementById('connect-btn');
+      if (connectBtn) {
+        connectBtn.addEventListener('click', connectToSquare);
+      }
+      
+      // Select location button
+      const selectLocationBtn = document.getElementById('select-location-btn');
+      if (selectLocationBtn) {
+        selectLocationBtn.addEventListener('click', selectLocation);
+      }
+      
+      // Change location button
+      const changeLocationBtn = document.getElementById('change-location-btn');
+      if (changeLocationBtn) {
+        changeLocationBtn.addEventListener('click', showLocationSelector);
+      }
+      
+      // Disconnect button
+      const disconnectBtn = document.getElementById('disconnect-btn');
+      if (disconnectBtn) {
+        disconnectBtn.addEventListener('click', disconnect);
+      }
+      
+      // Tab navigation
+      document.querySelectorAll('.tab').forEach(tab => {
+        tab.addEventListener('click', function() {
+          // Remove active class from all tabs
+          document.querySelectorAll('.tab').forEach(t => {
+            t.classList.remove('active');
+          });
+          
+          // Hide all tab contents
+          document.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.add('hidden');
+          });
+          
+          // Show the selected tab and content
+          this.classList.add('active');
+          const tabId = this.getAttribute('data-tab') + '-tab';
+          document.getElementById(tabId).classList.remove('hidden');
+        });
+      });
+      
+      // Refresh data button
+      const refreshBtn = document.getElementById('refresh-data');
+      if (refreshBtn) {
+        refreshBtn.addEventListener('click', loadInventoryData);
+      }
+      
+      // Add vendor button
+      const addVendorBtn = document.getElementById('add-vendor-btn');
+      if (addVendorBtn) {
+        addVendorBtn.addEventListener('click', addVendor);
+      }
+      
+      // Add mold button
+      const addMoldBtn = document.getElementById('add-mold-btn');
+      if (addMoldBtn) {
+        addMoldBtn.addEventListener('click', addMold);
+      }
+      
+      // Save settings button
+      const saveSettingsBtn = document.getElementById('save-settings-btn');
+      if (saveSettingsBtn) {
+        saveSettingsBtn.addEventListener('click', saveSettings);
+      }
+      
+      // Export data button
+      const exportDataBtn = document.getElementById('export-data-btn');
+      if (exportDataBtn) {
+        exportDataBtn.addEventListener('click', exportData);
+      }
+      
+      // Import data button
+      const importDataBtn = document.getElementById('import-data-btn');
+      if (importDataBtn) {
+        importDataBtn.addEventListener('click', function() {
+          document.getElementById('import-file').click();
+        });
+      }
+      
+      // Import file change
+      const importFile = document.getElementById('import-file');
+      if (importFile) {
+        importFile.addEventListener('change', importData);
+      }
+      
+      // Filter listeners
+      setupFilterListeners();
+    }
+    
+    // Set up filter listeners
+    function setupFilterListeners() {
+      // Reorder tab filters
+      const statusFilter = document.getElementById('status-filter');
+      const vendorFilter = document.getElementById('vendor-filter');
+      const plasticFilter = document.getElementById('plastic-filter');
+      const moldFilter = document.getElementById('mold-filter');
+      
+      if (statusFilter && vendorFilter && plasticFilter && moldFilter) {
+        [statusFilter, vendorFilter, plasticFilter, moldFilter].forEach(filter => {
+          filter.addEventListener('change', filterReorderTable);
+        });
+      }
+      
+      // Inventory tab filters
+      const inventorySearch = document.getElementById('inventory-search');
+      const inventoryVendor = document.getElementById('inventory-vendor');
+      const inventoryPlastic = document.getElementById('inventory-plastic');
+      const inventoryMold = document.getElementById('inventory-mold');
+      
+      if (inventorySearch && inventoryVendor && inventoryPlastic && inventoryMold) {
+        inventorySearch.addEventListener('input', filterInventoryTable);
+        [inventoryVendor, inventoryPlastic, inventoryMold].forEach(filter => {
+          filter.addEventListener('change', filterInventoryTable);
+        });
+      }
+      
+      // Mold tab filters
+      const moldSearch = document.getElementById('mold-search');
+      const moldVendorFilter = document.getElementById('mold-vendor-filter');
+      const showArchived = document.getElementById('show-archived');
+      
+      if (moldSearch && moldVendorFilter && showArchived) {
+        moldSearch.addEventListener('input', filterMoldsTable);
+        moldVendorFilter.addEventListener('change', filterMoldsTable);
+        showArchived.addEventListener('change', filterMoldsTable);
       }
     }
     
@@ -191,15 +831,1087 @@
     
     // Disconnect from Square
     function disconnect() {
-      localStorage.removeItem('square_access_token');
-      localStorage.removeItem('square_location_id');
-      showAuth();
+      if (confirm('Are you sure you want to disconnect from Square? This will log you out.')) {
+        // Clear localStorage
+        localStorage.removeItem('square_access_token');
+        localStorage.removeItem('square_location_id');
+        localStorage.removeItem('square_location_name');
+        
+        // Update state
+        state.token = null;
+        state.locationId = null;
+        state.locationName = null;
+        
+        // Show auth page
+        showAuth();
+        
+        // Show status message
+        statusMessage.innerHTML = `
+          <div class="message info">
+            <p>You've been disconnected from Square.</p>
+          </div>
+        `;
+      }
+    }
+    
+    // Load locations from Square
+    async function loadLocations() {
+      try {
+        const locationSelect = document.getElementById('location-select');
+        locationSelect.innerHTML = '<option value="">Loading locations...</option>';
+        
+        const response = await fetch('https://connect.squareup.com/v2/locations', {
+          headers: {
+            'Authorization': `Bearer ${state.token}`,
+            'Square-Version': '2023-09-25',
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error ${response.status}`);
+        }
+        
+        const data = await response.json();
+        state.locations = data.locations || [];
+        
+        // Populate location select
+        locationSelect.innerHTML = '<option value="">Select a location...</option>';
+        
+        state.locations.forEach(location => {
+          const option = document.createElement('option');
+          option.value = location.id;
+          option.textContent = location.name;
+          locationSelect.appendChild(option);
+        });
+        
+        // If we only have one location, select it automatically
+        if (state.locations.length === 1) {
+          locationSelect.value = state.locations[0].id;
+        }
+      } catch (error) {
+        console.error('Error loading locations:', error);
+        
+        const locationSelect = document.getElementById('location-select');
+        locationSelect.innerHTML = '<option value="">Error loading locations</option>';
+      }
+    }
+    
+    // Select location
+    function selectLocation() {
+      const locationSelect = document.getElementById('location-select');
+      const locationId = locationSelect.value;
       
-      statusMessage.innerHTML = `
-        <div class="message info">
-          <p>You've been disconnected from Square.</p>
-        </div>
-      `;
+      if (!locationId) {
+        alert('Please select a location');
+        return;
+      }
+      
+      // Find location name
+      const location = state.locations.find(loc => loc.id === locationId);
+      const locationName = location ? location.name : locationId;
+      
+      // Save location
+      localStorage.setItem('square_location_id', locationId);
+      localStorage.setItem('square_location_name', locationName);
+      
+      // Update state
+      state.locationId = locationId;
+      state.locationName = locationName;
+      
+      // Show app content
+      showAppContent();
+      
+      // Load inventory data
+      loadInventoryData();
+    }
+    
+    // Load inventory data
+    async function loadInventoryData() {
+      if (!state.token || !state.locationId) {
+        console.error('Missing token or locationId');
+        return;
+      }
+      
+      try {
+        // Show loading indicators
+        document.getElementById('loading-data').classList.remove('hidden');
+        document.getElementById('loading-inventory').classList.remove('hidden');
+        
+        // Fetch catalog
+        await loadCatalog();
+        
+        // Fetch inventory
+        await loadInventory();
+        
+        // Process data for display
+        processInventoryData();
+        
+        // Hide loading indicators
+        document.getElementById('loading-data').classList.add('hidden');
+        document.getElementById('loading-inventory').classList.add('hidden');
+      } catch (error) {
+        console.error('Error loading data:', error);
+        
+        // Hide loading indicators
+        document.getElementById('loading-data').classList.add('hidden');
+        document.getElementById('loading-inventory').classList.add('hidden');
+        
+        // Show error message
+        const reorderContent = document.getElementById('reorder-content');
+        reorderContent.innerHTML = `
+          <div class="message error">
+            <p>Error loading inventory data: ${error.message}</p>
+          </div>
+        `;
+      }
+    }
+    
+    // Load catalog from Square
+    async function loadCatalog() {
+      const response = await fetch('https://connect.squareup.com/v2/catalog/list?types=ITEM,CATEGORY', {
+        headers: {
+          'Authorization': `Bearer ${state.token}`,
+          'Square-Version': '2023-09-25',
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error ${response.status}`);
+      }
+      
+      const data = await response.json();
+      state.catalog = data.objects || [];
+    }
+    
+    // Load inventory from Square
+    async function loadInventory() {
+      const response = await fetch(`https://connect.squareup.com/v2/inventory/counts?location_ids=${state.locationId}`, {
+        headers: {
+          'Authorization': `Bearer ${state.token}`,
+          'Square-Version': '2023-09-25',
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error ${response.status}`);
+      }
+      
+      const data = await response.json();
+      state.inventory = data.counts || [];
+    }
+    
+    // Process inventory data
+    function processInventoryData() {
+      // Create a map of catalog items
+      const catalogMap = {};
+      const catalogItems = {};
+      const catalogCategories = {};
+      
+      // Process categories
+      state.catalog.forEach(obj => {
+        if (obj.type === 'CATEGORY') {
+          catalogCategories[obj.id] = obj.category_data.name;
+        }
+      });
+      
+      // Process items and variations
+      state.catalog.forEach(obj => {
+        if (obj.type === 'ITEM') {
+          const categoryId = obj.item_data.category_id;
+          const categoryName = categoryId ? catalogCategories[categoryId] : 'Uncategorized';
+          
+          catalogItems[obj.id] = {
+            name: obj.item_data.name,
+            category: categoryName
+          };
+          
+          if (obj.item_data.variations) {
+            obj.item_data.variations.forEach(variation => {
+              catalogMap[variation.id] = {
+                id: variation.id,
+                parentId: obj.id,
+                parentName: obj.item_data.name,
+                variationName: variation.item_variation_data.name,
+                sku: variation.item_variation_data.sku || '',
+                price: variation.item_variation_data.price_money 
+                  ? variation.item_variation_data.price_money.amount / 100 
+                  : 0,
+                category: categoryName
+              };
+            });
+          }
+        }
+      });
+      
+      // Process inventory counts
+      const processedItems = [];
+      
+      state.inventory.forEach(count => {
+        const catalogItem = catalogMap[count.catalog_object_id];
+        
+        if (catalogItem) {
+          const name = `${catalogItem.parentName} ${catalogItem.variationName}`.trim();
+          
+          // Extract plastic type and mold
+          const { plastic, mold } = extractPlasticAndMold(name);
+          
+          // Determine vendor
+          const vendor = determineVendor(name, catalogItem.sku);
+          
+          // Get vendor lead time
+          const vendorObj = state.vendors.find(v => v.name === vendor);
+          const leadTime = vendorObj ? vendorObj.leadTime : 7;
+          
+          // Find mold settings (par level, archived)
+          const moldSettings = state.molds.find(m => m.name === mold);
+          const parLevel = moldSettings ? moldSettings.parLevel : state.settings.defaultPar;
+          const isArchived = moldSettings ? moldSettings.archived : false;
+          
+          // Calculate stock status
+          const stock = parseInt(count.quantity) || 0;
+          let status = 'OK';
+          let statusCode = 2;
+          
+          if (stock <= parLevel * 0.2) {
+            status = 'URGENT';
+            statusCode = 0;
+          } else if (stock <= parLevel * 0.5) {
+            status = 'SOON';
+            statusCode = 1;
+          }
+          
+          // Calculate recommended order
+          const recommendedOrder = calculateRecommendedOrder(stock, parLevel, leadTime);
+          
+          // Only include discs (filtering by category)
+          if (!isArchived && catalogItem.category && 
+              (catalogItem.category.includes('Disc') || 
+               catalogItem.category.includes('disc') ||
+               name.toLowerCase().includes('disc'))) {
+            processedItems.push({
+              id: catalogItem.id,
+              name,
+              parentName: catalogItem.parentName,
+              sku: catalogItem.sku,
+              plastic,
+              mold,
+              vendor,
+              leadTime,
+              parLevel,
+              stock,
+              status,
+              statusCode,
+              recommendedOrder,
+              price: catalogItem.price,
+              category: catalogItem.category
+            });
+          }
+        }
+      });
+      
+      // Sort by status (URGENT first, then SOON, then OK) and then by mold
+      processedItems.sort((a, b) => {
+        if (a.statusCode !== b.statusCode) {
+          return a.statusCode - b.statusCode;
+        }
+        if (a.mold !== b.mold) {
+          return a.mold.localeCompare(b.mold);
+        }
+        return a.name.localeCompare(b.name);
+      });
+      
+      // Update UI
+      updateInventoryTables(processedItems);
+      updateMoldsTable(processedItems);
+      updateFilterDropdowns(processedItems);
+    }
+    
+    // Extract plastic type and mold from item name
+    function extractPlasticAndMold(name) {
+      // Try to identify plastic type
+      let plastic = '';
+      let mold = name;
+      
+      for (const type of state.plasticTypes) {
+        if (name.includes(type)) {
+          plastic = type;
+          // Remove plastic type from name to get mold
+          mold = name.replace(type, '').trim();
+          // Remove any leading/trailing special characters
+          mold = mold.replace(/^[^a-zA-Z0-9]+|[^a-zA-Z0-9]+$/g, '');
+          break;
+        }
+      }
+      
+      // If no plastic type found, try to extract from word patterns
+      if (!plastic) {
+        const words = name.split(' ');
+        if (words.length > 1) {
+          // First word might be plastic type
+          const potentialPlastic = words[0];
+          if (potentialPlastic.length > 1) {
+            plastic = potentialPlastic;
+            mold = words.slice(1).join(' ');
+          }
+        }
+      }
+      
+      // If mold contains numbers, clean it up
+      mold = mold.replace(/\d+$/, '').trim();
+      
+      // If plastic is still empty, use "Unknown"
+      if (!plastic) {
+        plastic = 'Unknown';
+      }
+      
+      return { plastic, mold };
+    }
+    
+    // Determine vendor based on name and SKU
+    function determineVendor(name, sku) {
+      const vendorPatterns = {
+        'Innova': ['Innova', 'Star', 'Champion', 'DX', 'GStar', 'Halo'],
+        'Discraft': ['Discraft', 'ESP', 'Z', 'Elite', 'FLX', 'Jawbreaker'],
+        'MVP': ['MVP', 'Axiom', 'Streamline', 'Neutron', 'Plasma', 'Proton'],
+        'Dynamic Discs': ['Dynamic', 'Lucid', 'Fuzion'],
+        'Latitude 64': ['Latitude', 'Gold', 'Opto'],
+        'Westside': ['Westside', 'VIP', 'Tournament']
+      };
+      
+      // Check name and SKU against vendor patterns
+      for (const [vendor, patterns] of Object.entries(vendorPatterns)) {
+        for (const pattern of patterns) {
+          if (name.includes(pattern) || (sku && sku.includes(pattern))) {
+            return vendor;
+          }
+        }
+      }
+      
+      // Default to first vendor in the list
+      return state.vendors.length > 0 ? state.vendors[0].name : 'Unknown';
+    }
+    
+    // Calculate recommended order quantity
+    function calculateRecommendedOrder(stock, parLevel, leadTime) {
+      if (stock >= parLevel) {
+        return 0;
+      }
+      
+      // Basic calculation: par level - current stock
+      let recommendedOrder = parLevel - stock;
+      
+      // Add buffer based on lead time
+      const buffer = Math.ceil(state.settings.bufferDays / leadTime);
+      recommendedOrder += buffer;
+      
+      return recommendedOrder;
+    }
+    
+    // Update inventory tables
+    function updateInventoryTables(items) {
+      // Update reorder table
+      const reorderBody = document.getElementById('reorder-body');
+      reorderBody.innerHTML = '';
+      
+      // Filter items that need reordering
+      const reorderItems = items.filter(item => item.recommendedOrder > 0);
+      
+      if (reorderItems.length === 0) {
+        reorderBody.innerHTML = `
+          <tr>
+            <td colspan="10" style="text-align: center;">No items need reordering at this time.</td>
+          </tr>
+        `;
+      } else {
+        reorderItems.forEach(item => {
+          const row = document.createElement('tr');
+          
+          row.innerHTML = `
+            <td>${item.name}</td>
+            <td><span class="plastic-badge">${item.plastic}</span></td>
+            <td>${item.mold}</td>
+            <td>${item.stock}</td>
+            <td>${item.parLevel}</td>
+            <td>${item.vendor}</td>
+            <td>${item.leadTime} days</td>
+            <td><span class="status-${item.status.toLowerCase()}">${item.status}</span></td>
+            <td>${item.recommendedOrder}</td>
+            <td><button class="btn" data-id="${item.id}">Order</button></td>
+          `;
+          
+          reorderBody.appendChild(row);
+        });
+      }
+      
+      // Update inventory table
+      const inventoryBody = document.getElementById('inventory-body');
+      inventoryBody.innerHTML = '';
+      
+      if (items.length === 0) {
+        inventoryBody.innerHTML = `
+          <tr>
+            <td colspan="8" style="text-align: center;">No inventory items found.</td>
+          </tr>
+        `;
+      } else {
+        items.forEach(item => {
+          const row = document.createElement('tr');
+          
+          row.innerHTML = `
+            <td>${item.name}</td>
+            <td>${item.sku || ''}</td>
+            <td><span class="plastic-badge">${item.plastic}</span></td>
+            <td>${item.mold}</td>
+            <td>${item.vendor}</td>
+            <td>${item.stock}</td>
+            <td>${item.parLevel}</td>
+            <td>$${item.price.toFixed(2)}</td>
+          `;
+          
+          inventoryBody.appendChild(row);
+        });
+      }
+    }
+    
+    // Update molds table
+    function updateMoldsTable(items) {
+      // Create a map of molds with aggregated stock
+      const moldsMap = {};
+      
+      // First, add all molds from state.molds
+      state.molds.forEach(mold => {
+        moldsMap[mold.name] = {
+          name: mold.name,
+          vendor: mold.vendor,
+          parLevel: mold.parLevel,
+          stock: 0,
+          archived: mold.archived
+        };
+      });
+      
+      // Then, update stock counts from items
+      items.forEach(item => {
+        if (!moldsMap[item.mold]) {
+          moldsMap[item.mold] = {
+            name: item.mold,
+            vendor: item.vendor,
+            parLevel: item.parLevel,
+            stock: 0,
+            archived: false
+          };
+        }
+        
+        moldsMap[item.mold].stock += item.stock;
+      });
+      
+      // Convert to array and sort
+      const molds = Object.values(moldsMap);
+      molds.sort((a, b) => {
+        if (a.archived !== b.archived) {
+          return a.archived ? 1 : -1;
+        }
+        return a.name.localeCompare(b.name);
+      });
+      
+      // Update molds table
+      const moldsBody = document.getElementById('molds-body');
+      moldsBody.innerHTML = '';
+      
+      if (molds.length === 0) {
+        moldsBody.innerHTML = `
+          <tr>
+            <td colspan="6" style="text-align: center;">No molds found.</td>
+          </tr>
+        `;
+      } else {
+        molds.forEach(mold => {
+          const row = document.createElement('tr');
+          
+          if (mold.archived) {
+            row.style.backgroundColor = '#f9f9f9';
+            row.style.color = '#999';
+          }
+          
+          const status = mold.archived ? 
+            '<span style="display: inline-block; padding: 3px 8px; background-color: #999; color: white; border-radius: 4px; font-size: 12px;">Archived</span>' :
+            '<span style="display: inline-block; padding: 3px 8px; background-color: #4CAF50; color: white; border-radius: 4px; font-size: 12px;">Active</span>';
+          
+          row.innerHTML = `
+            <td>${mold.name}</td>
+            <td>${mold.vendor}</td>
+            <td>
+              <input type="number" value="${mold.parLevel}" min="0" style="width: 60px;" 
+                ${mold.archived ? 'disabled' : ''} data-mold="${mold.name}">
+            </td>
+            <td>${mold.stock}</td>
+            <td>${status}</td>
+            <td>
+              ${mold.archived ?
+                `<button class="btn btn-green unarchive-btn" data-mold="${mold.name}">Unarchive</button>` :
+                `<button class="btn save-par-btn" data-mold="${mold.name}">Save</button>
+                 <button class="btn btn-red archive-btn" data-mold="${mold.name}">Archive</button>`
+              }
+            </td>
+          `;
+          
+          moldsBody.appendChild(row);
+        });
+        
+        // Add event listeners for mold actions
+        document.querySelectorAll('.save-par-btn').forEach(btn => {
+          btn.addEventListener('click', function() {
+            const moldName = this.getAttribute('data-mold');
+            const input = document.querySelector(`input[data-mold="${moldName}"]`);
+            const parLevel = parseInt(input.value);
+            
+            saveMoldParLevel(moldName, parLevel);
+          });
+        });
+        
+        document.querySelectorAll('.archive-btn').forEach(btn => {
+          btn.addEventListener('click', function() {
+            const moldName = this.getAttribute('data-mold');
+            
+            if (confirm(`Are you sure you want to archive ${moldName}? This will set its par level to 0.`)) {
+              archiveMold(moldName);
+            }
+          });
+        });
+        
+        document.querySelectorAll('.unarchive-btn').forEach(btn => {
+          btn.addEventListener('click', function() {
+            const moldName = this.getAttribute('data-mold');
+            unarchiveMold(moldName);
+          });
+        });
+      }
+    }
+    
+    // Update vendor table
+    function updateVendorsTable() {
+      const vendorsBody = document.getElementById('vendors-body');
+      vendorsBody.innerHTML = '';
+      
+      if (state.vendors.length === 0) {
+        vendorsBody.innerHTML = `
+          <tr>
+            <td colspan="3" style="text-align: center;">No vendors found.</td>
+          </tr>
+        `;
+      } else {
+        state.vendors.forEach((vendor, index) => {
+          const row = document.createElement('tr');
+          
+          row.innerHTML = `
+            <td>${vendor.name}</td>
+            <td>${vendor.leadTime} days</td>
+            <td>
+              <button class="btn edit-vendor-btn" data-index="${index}">Edit</button>
+              <button class="btn btn-red delete-vendor-btn" data-index="${index}">Delete</button>
+            </td>
+          `;
+          
+          vendorsBody.appendChild(row);
+        });
+        
+        // Add event listeners for vendor actions
+        document.querySelectorAll('.edit-vendor-btn').forEach(btn => {
+          btn.addEventListener('click', function() {
+            const index = parseInt(this.getAttribute('data-index'));
+            editVendor(index);
+          });
+        });
+        
+        document.querySelectorAll('.delete-vendor-btn').forEach(btn => {
+          btn.addEventListener('click', function() {
+            const index = parseInt(this.getAttribute('data-index'));
+            deleteVendor(index);
+          });
+        });
+      }
+    }
+    
+    // Update filter dropdowns
+    function updateFilterDropdowns(items) {
+      // Extract unique values
+      const vendors = [...new Set(items.map(item => item.vendor))];
+      const plastics = [...new Set(items.map(item => item.plastic))];
+      const molds = [...new Set(items.map(item => item.mold))];
+      
+      // Sort values
+      vendors.sort();
+      plastics.sort();
+      molds.sort();
+      
+      // Update vendor dropdowns
+      updateDropdown('vendor-filter', vendors);
+      updateDropdown('inventory-vendor', vendors);
+      updateDropdown('mold-vendor-filter', vendors);
+      updateDropdown('new-mold-vendor', vendors);
+      
+      // Update plastic dropdowns
+      updateDropdown('plastic-filter', plastics);
+      updateDropdown('inventory-plastic', plastics);
+      
+      // Update mold dropdowns
+      updateDropdown('mold-filter', molds);
+      updateDropdown('inventory-mold', molds);
+    }
+    
+    // Update a dropdown with options
+    function updateDropdown(id, options) {
+      const dropdown = document.getElementById(id);
+      if (!dropdown) return;
+      
+      // Keep the first option (usually "All")
+      const firstOption = dropdown.options[0];
+      dropdown.innerHTML = '';
+      dropdown.appendChild(firstOption);
+      
+      // Add options
+      options.forEach(option => {
+        const optionElement = document.createElement('option');
+        optionElement.value = option;
+        optionElement.textContent = option;
+        dropdown.appendChild(optionElement);
+      });
+    }
+    
+    // Filter reorder table
+    function filterReorderTable() {
+      const statusFilter = document.getElementById('status-filter').value;
+      const vendorFilter = document.getElementById('vendor-filter').value;
+      const plasticFilter = document.getElementById('plastic-filter').value;
+      const moldFilter = document.getElementById('mold-filter').value;
+      
+      const rows = document.querySelectorAll('#reorder-body tr');
+      
+      rows.forEach(row => {
+        // Skip rows with colspan (no results message)
+        if (row.querySelector('td[colspan]')) return;
+        
+        const status = row.querySelector('td:nth-child(8) span').textContent;
+        const vendor = row.querySelector('td:nth-child(6)').textContent;
+        const plastic = row.querySelector('td:nth-child(2) span').textContent;
+        const mold = row.querySelector('td:nth-child(3)').textContent;
+        
+        const statusMatch = statusFilter === 'all' || status.toLowerCase() === statusFilter.toLowerCase();
+        const vendorMatch = vendorFilter === 'all' || vendor === vendorFilter;
+        const plasticMatch = plasticFilter === 'all' || plastic === plasticFilter;
+        const moldMatch = moldFilter === 'all' || mold === moldFilter;
+        
+        row.style.display = statusMatch && vendorMatch && plasticMatch && moldMatch ? '' : 'none';
+      });
+    }
+    
+    // Filter inventory table
+    function filterInventoryTable() {
+      const searchValue = document.getElementById('inventory-search').value.toLowerCase();
+      const vendorFilter = document.getElementById('inventory-vendor').value;
+      const plasticFilter = document.getElementById('inventory-plastic').value;
+      const moldFilter = document.getElementById('inventory-mold').value;
+      
+      const rows = document.querySelectorAll('#inventory-body tr');
+      
+      rows.forEach(row => {
+        // Skip rows with colspan (no results message)
+        if (row.querySelector('td[colspan]')) return;
+        
+        const name = row.querySelector('td:nth-child(1)').textContent.toLowerCase();
+        const sku = row.querySelector('td:nth-child(2)').textContent.toLowerCase();
+        const plastic = row.querySelector('td:nth-child(3) span').textContent;
+        const mold = row.querySelector('td:nth-child(4)').textContent;
+        const vendor = row.querySelector('td:nth-child(5)').textContent;
+        
+        const searchMatch = 
+          name.includes(searchValue) || 
+          sku.includes(searchValue) || 
+          mold.toLowerCase().includes(searchValue);
+          
+        const vendorMatch = vendorFilter === 'all' || vendor === vendorFilter;
+        const plasticMatch = plasticFilter === 'all' || plastic === plasticFilter;
+        const moldMatch = moldFilter === 'all' || mold === moldFilter;
+        
+        row.style.display = searchMatch && vendorMatch && plasticMatch && moldMatch ? '' : 'none';
+      });
+    }
+    
+    // Filter molds table
+    function filterMoldsTable() {
+      const searchValue = document.getElementById('mold-search').value.toLowerCase();
+      const vendorFilter = document.getElementById('mold-vendor-filter').value;
+      const showArchived = document.getElementById('show-archived').checked;
+      
+      const rows = document.querySelectorAll('#molds-body tr');
+      
+      rows.forEach(row => {
+        // Skip rows with colspan (no results message)
+        if (row.querySelector('td[colspan]')) return;
+        
+        const mold = row.querySelector('td:nth-child(1)').textContent.toLowerCase();
+        const vendor = row.querySelector('td:nth-child(2)').textContent;
+        const status = row.querySelector('td:nth-child(5) span').textContent;
+        const isArchived = status === 'Archived';
+        
+        const searchMatch = mold.includes(searchValue);
+        const vendorMatch = vendorFilter === 'all' || vendor === vendorFilter;
+        const archivedMatch = showArchived || !isArchived;
+        
+        row.style.display = searchMatch && vendorMatch && archivedMatch ? '' : 'none';
+      });
+    }
+    
+    // Add vendor
+    function addVendor() {
+      const nameInput = document.getElementById('vendor-name');
+      const leadTimeInput = document.getElementById('lead-time');
+      
+      const name = nameInput.value.trim();
+      const leadTime = parseInt(leadTimeInput.value);
+      
+      if (!name) {
+        alert('Please enter a vendor name');
+        return;
+      }
+      
+      if (isNaN(leadTime) || leadTime < 1) {
+        alert('Please enter a valid lead time (must be at least 1 day)');
+        return;
+      }
+      
+      // Check if vendor already exists
+      const existingVendor = state.vendors.find(v => v.name.toLowerCase() === name.toLowerCase());
+      if (existingVendor) {
+        alert(`Vendor "${name}" already exists`);
+        return;
+      }
+      
+      // Add vendor
+      state.vendors.push({
+        name,
+        leadTime
+      });
+      
+      // Save vendors
+      saveVendors();
+      
+      // Update vendor table
+      updateVendorsTable();
+      
+      // Clear inputs
+      nameInput.value = '';
+      leadTimeInput.value = '';
+      
+      // Update dropdowns
+      updateDropdown('vendor-filter', state.vendors.map(v => v.name));
+      updateDropdown('inventory-vendor', state.vendors.map(v => v.name));
+      updateDropdown('mold-vendor-filter', state.vendors.map(v => v.name));
+      updateDropdown('new-mold-vendor', state.vendors.map(v => v.name));
+    }
+    
+    // Edit vendor
+    function editVendor(index) {
+      const vendor = state.vendors[index];
+      
+      const newName = prompt('Vendor name:', vendor.name);
+      if (!newName) return;
+      
+      const newLeadTime = parseInt(prompt('Lead time (days):', vendor.leadTime));
+      if (isNaN(newLeadTime) || newLeadTime < 1) {
+        alert('Please enter a valid lead time (must be at least 1 day)');
+        return;
+      }
+      
+      // Update vendor
+      vendor.name = newName;
+      vendor.leadTime = newLeadTime;
+      
+      // Save vendors
+      saveVendors();
+      
+      // Update vendor table
+      updateVendorsTable();
+      
+      // Update dropdowns
+      updateDropdown('vendor-filter', state.vendors.map(v => v.name));
+      updateDropdown('inventory-vendor', state.vendors.map(v => v.name));
+      updateDropdown('mold-vendor-filter', state.vendors.map(v => v.name));
+      updateDropdown('new-mold-vendor', state.vendors.map(v => v.name));
+    }
+    
+    // Delete vendor
+    function deleteVendor(index) {
+      const vendor = state.vendors[index];
+      
+      if (!confirm(`Are you sure you want to delete vendor "${vendor.name}"?`)) {
+        return;
+      }
+      
+      // Remove vendor
+      state.vendors.splice(index, 1);
+      
+      // Save vendors
+      saveVendors();
+      
+      // Update vendor table
+      updateVendorsTable();
+      
+      // Update dropdowns
+      updateDropdown('vendor-filter', state.vendors.map(v => v.name));
+      updateDropdown('inventory-vendor', state.vendors.map(v => v.name));
+      updateDropdown('mold-vendor-filter', state.vendors.map(v => v.name));
+      updateDropdown('new-mold-vendor', state.vendors.map(v => v.name));
+    }
+    
+    // Save vendors to localStorage
+    function saveVendors() {
+      localStorage.setItem('vendors', JSON.stringify(state.vendors));
+    }
+    
+    // Add mold
+    function addMold() {
+      const nameInput = document.getElementById('new-mold-name');
+      const vendorSelect = document.getElementById('new-mold-vendor');
+      const parInput = document.getElementById('new-mold-par');
+      
+      const name = nameInput.value.trim();
+      const vendor = vendorSelect.value;
+      const parLevel = parseInt(parInput.value);
+      
+      if (!name) {
+        alert('Please enter a mold name');
+        return;
+      }
+      
+      if (!vendor) {
+        alert('Please select a vendor');
+        return;
+      }
+      
+      if (isNaN(parLevel) || parLevel < 0) {
+        alert('Please enter a valid par level (must be 0 or higher)');
+        return;
+      }
+      
+      // Check if mold already exists
+      const existingMold = state.molds.find(m => m.name.toLowerCase() === name.toLowerCase());
+      if (existingMold) {
+        alert(`Mold "${name}" already exists`);
+        return;
+      }
+      
+      // Add mold
+      state.molds.push({
+        name,
+        vendor,
+        parLevel,
+        archived: false
+      });
+      
+      // Save molds
+      saveMolds();
+      
+      // Reload inventory data to update tables
+      loadInventoryData();
+      
+      // Clear inputs
+      nameInput.value = '';
+      parInput.value = state.settings.defaultPar;
+    }
+    
+    // Save mold par level
+    function saveMoldParLevel(moldName, parLevel) {
+      if (isNaN(parLevel) || parLevel < 0) {
+        alert('Please enter a valid par level (must be 0 or higher)');
+        return;
+      }
+      
+      // Find mold
+      const mold = state.molds.find(m => m.name === moldName);
+      
+      if (mold) {
+        // Update par level
+        mold.parLevel = parLevel;
+      } else {
+       // Create new mold
+        const vendorSelect = document.getElementById('mold-vendor-filter');
+        const vendor = vendorSelect.value !== 'all' ? vendorSelect.value : state.vendors[0]?.name || 'Unknown';
+        
+        state.molds.push({
+          name: moldName,
+          vendor,
+          parLevel,
+          archived: false
+        });
+      }
+      
+      // Save molds
+      saveMolds();
+      
+      // Show confirmation
+      alert(`Par level for ${moldName} saved as ${parLevel}`);
+      
+      // Reload inventory data to update tables
+      loadInventoryData();
+    }
+    
+    // Archive mold
+    function archiveMold(moldName) {
+      const mold = state.molds.find(m => m.name === moldName);
+      
+      if (mold) {
+        mold.archived = true;
+        mold.parLevel = 0;
+      } else {
+        const vendorSelect = document.getElementById('mold-vendor-filter');
+        const vendor = vendorSelect.value !== 'all' ? vendorSelect.value : state.vendors[0]?.name || 'Unknown';
+        
+        state.molds.push({
+          name: moldName,
+          vendor,
+          parLevel: 0,
+          archived: true
+        });
+      }
+      
+      // Save molds
+      saveMolds();
+      
+      // Reload inventory data to update tables
+      loadInventoryData();
+    }
+    
+    // Unarchive mold
+    function unarchiveMold(moldName) {
+      const mold = state.molds.find(m => m.name === moldName);
+      
+      if (mold) {
+        mold.archived = false;
+        mold.parLevel = state.settings.defaultPar;
+      }
+      
+      // Save molds
+      saveMolds();
+      
+      // Reload inventory data to update tables
+      loadInventoryData();
+    }
+    
+    // Save molds to localStorage
+    function saveMolds() {
+      localStorage.setItem('molds', JSON.stringify(state.molds));
+    }
+    
+    // Save settings
+    function saveSettings() {
+      const minStock = parseInt(document.getElementById('min-stock').value);
+      const bufferDays = parseInt(document.getElementById('buffer-days').value);
+      const defaultPar = parseInt(document.getElementById('default-par').value);
+      
+      if (isNaN(minStock) || minStock < 0) {
+        alert('Please enter a valid minimum stock level (must be 0 or higher)');
+        return;
+      }
+      
+      if (isNaN(bufferDays) || bufferDays < 0) {
+        alert('Please enter a valid buffer days (must be 0 or higher)');
+        return;
+      }
+      
+      if (isNaN(defaultPar) || defaultPar < 0) {
+        alert('Please enter a valid default par level (must be 0 or higher)');
+        return;
+      }
+      
+      // Update settings
+      state.settings.minStock = minStock;
+      state.settings.bufferDays = bufferDays;
+      state.settings.defaultPar = defaultPar;
+      
+      // Save settings
+      localStorage.setItem('settings', JSON.stringify(state.settings));
+      
+      // Show confirmation
+      alert('Settings saved successfully');
+      
+      // Reload inventory data to update tables
+      loadInventoryData();
+    }
+    
+    // Load settings
+    function loadSettings() {
+      // Update settings UI
+      document.getElementById('min-stock').value = state.settings.minStock;
+      document.getElementById('buffer-days').value = state.settings.bufferDays;
+      document.getElementById('default-par').value = state.settings.defaultPar;
+      
+      // Update vendors table
+      updateVendorsTable();
+    }
+    
+    // Export data
+    function exportData() {
+      const data = {
+        exportDate: new Date().toISOString(),
+        settings: state.settings,
+        vendors: state.vendors,
+        molds: state.molds
+      };
+      
+      // Create blob and download
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `disc-inventory-export-${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      
+      URL.revokeObjectURL(url);
+    }
+    
+    // Import data
+    function importData(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      
+      reader.onload = function(e) {
+        try {
+          const data = JSON.parse(e.target.result);
+          
+          // Validate data
+          if (!data.settings || !data.vendors || !data.molds) {
+            throw new Error('Invalid import file format');
+          }
+          
+          // Import data
+          state.settings = data.settings;
+          state.vendors = data.vendors;
+          state.molds = data.molds;
+          
+          // Save to localStorage
+          localStorage.setItem('settings', JSON.stringify(state.settings));
+          localStorage.setItem('vendors', JSON.stringify(state.vendors));
+          localStorage.setItem('molds', JSON.stringify(state.molds));
+          
+          // Update UI
+          loadSettings();
+          loadInventoryData();
+          
+          // Show confirmation
+          alert('Data imported successfully');
+        } catch (error) {
+          console.error('Import error:', error);
+          alert(`Error importing data: ${error.message}`);
+        }
+      };
+      
+      reader.readAsText(file);
     }
   </script>
 </body>
