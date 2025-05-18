@@ -35,7 +35,7 @@ exports.handler = async function(event, context) {
       );
 
       // Process the catalog to extract unique vendors
-      const vendors = processCatalogForVendors(catalogResponse.result.objects || []);
+      const vendors = extractVendorsFromCatalog(catalogResponse.result.objects || []);
 
       return {
         statusCode: 200,
@@ -84,8 +84,14 @@ function getDefaultVendors() {
   ];
 }
 
-// Process catalog items to extract unique vendors
-function processCatalogForVendors(catalogItems) {
+// Common disc golf vendors
+const knownVendors = [
+  "Innova", "Discraft", "Dynamic Discs", "MVP", "Axiom", "Streamline", 
+  "Latitude 64", "Westside", "Prodigy", "Gateway", "Kastaplast", "Discmania"
+];
+
+// Extract vendors from catalog items
+function extractVendorsFromCatalog(catalogItems) {
   // Set to track unique vendor names
   const vendorNames = new Set();
   // Array to hold vendor objects
@@ -98,17 +104,20 @@ function processCatalogForVendors(catalogItems) {
       return;
     }
     
-    // Get vendor from custom attribute
-    const vendorName = getCustomAttribute(item.itemData.customAttributeValues, 'vendor');
-    
-    // If we have a vendor and it's new, add it to the results
-    if (vendorName && !vendorNames.has(vendorName)) {
-      vendorNames.add(vendorName);
-      
-      vendors.push({
-        name: vendorName,
-        leadTime: 7 // Default lead time, can be overridden by local settings
-      });
+    // Determine vendor from name
+    for (const knownVendor of knownVendors) {
+      if (item.itemData.name.includes(knownVendor)) {
+        // If this is a new vendor, add it to the results
+        if (!vendorNames.has(knownVendor)) {
+          vendorNames.add(knownVendor);
+          
+          vendors.push({
+            name: knownVendor,
+            leadTime: 7 // Default lead time, can be overridden by local settings
+          });
+        }
+        break;
+      }
     }
   });
   
@@ -118,12 +127,4 @@ function processCatalogForVendors(catalogItems) {
   }
   
   return vendors;
-}
-
-// Helper function to extract custom attributes
-function getCustomAttribute(customAttributeValues, attributeName) {
-  if (!customAttributeValues) return null;
-  
-  const attribute = customAttributeValues[attributeName];
-  return attribute ? attribute.stringValue : null;
 }
