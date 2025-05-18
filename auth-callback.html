@@ -3,14 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Auth Callback</title>
+  <title>Square Authentication</title>
   <style>
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      line-height: 1.6;
+      color: #333;
       max-width: 800px;
       margin: 0 auto;
       padding: 20px;
-      line-height: 1.6;
+      background-color: #f5f5f5;
     }
     .container {
       background: white;
@@ -19,15 +21,18 @@
       padding: 20px;
       margin-bottom: 20px;
     }
-    h1 {
+    h1, h2, h3 {
       color: #333;
       margin-top: 0;
     }
     .message {
       padding: 15px;
+      margin-bottom: 15px;
       border-radius: 4px;
-      margin: 20px 0;
-      line-height: 1.5;
+    }
+    .info {
+      background-color: #e3f2fd;
+      border: 1px solid #90caf9;
     }
     .success {
       background-color: #e8f5e9;
@@ -37,73 +42,66 @@
       background-color: #ffebee;
       border: 1px solid #ffcdd2;
     }
-    .btn {
-      background-color: #1a73e8;
-      color: white;
-      border: none;
-      padding: 10px 15px;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 14px;
-      text-decoration: none;
-      display: inline-block;
-    }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>Square Authentication</h1>
     
-    <div id="loading">Processing authentication...</div>
-    
-    <div id="result"></div>
+    <div id="status">
+      <div class="message info">
+        <p>Processing authentication response from Square...</p>
+      </div>
+    </div>
   </div>
   
   <script>
+    // Process the OAuth response
     document.addEventListener('DOMContentLoaded', function() {
       const urlParams = new URLSearchParams(window.location.search);
       const code = urlParams.get('code');
       const error = urlParams.get('error');
+      const statusDiv = document.getElementById('status');
       
       if (code) {
         // We got an authorization code
-        // In a full implementation, we would exchange this for a token
-        // But since we're doing a client-side only implementation, we'll simulate success
-        
-        // Create dummy access token (in a real app, this would come from Square)
-        const dummyToken = 'ACCESS_TOKEN_' + Math.random().toString(36).substring(2, 15);
-        
-        document.getElementById('loading').classList.add('hidden');
-        document.getElementById('result').innerHTML = `
+        statusDiv.innerHTML = `
           <div class="message success">
             <h2>Authentication Successful!</h2>
-            <p>Your Square account has been connected successfully.</p>
-            <p>You'll be redirected to the inventory manager momentarily...</p>
+            <p>Authorization code: <code>${code}</code></p>
+            <p>In a full implementation, we would exchange this for an access token.</p>
+            <p>For this demo, we'll use a simulated token.</p>
+            <p>Redirecting to inventory manager...</p>
           </div>
         `;
         
-        // In a real implementation, we would exchange the code for a token
-        // Since we can't do that without a server, we'll just redirect with a dummy token
-        setTimeout(() => {
+        // In a full implementation, we would exchange the code for a token
+        // Since we don't have a server, we'll create a dummy token
+        const dummyToken = 'SQUARE_TOKEN_' + Math.random().toString(36).substring(2, 15);
+        
+        // Redirect back to main page with token in hash
+        setTimeout(function() {
           window.location.href = `/#${dummyToken}`;
-        }, 2000);
-      } else if (error) {
-        document.getElementById('loading').classList.add('hidden');
-        document.getElementById('result').innerHTML = `
+        }, 3000);
+      }
+      else if (error) {
+        // Authentication error
+        statusDiv.innerHTML = `
           <div class="message error">
             <h2>Authentication Error</h2>
             <p>Error: ${error}</p>
             <p>Description: ${urlParams.get('error_description') || 'No description provided'}</p>
-            <p><a href="/" class="btn">Try Again</a></p>
+            <p><a href="/">Return to Home</a></p>
           </div>
         `;
-      } else {
-        document.getElementById('loading').classList.add('hidden');
-        document.getElementById('result').innerHTML = `
+      }
+      else {
+        // No code or error
+        statusDiv.innerHTML = `
           <div class="message error">
-            <h2>Authentication Error</h2>
-            <p>No authorization code or error received.</p>
-            <p><a href="/" class="btn">Try Again</a></p>
+            <h2>Invalid Response</h2>
+            <p>No authorization code or error was received from Square.</p>
+            <p><a href="/">Return to Home</a></p>
           </div>
         `;
       }
