@@ -2601,6 +2601,47 @@ function processInventoryData() {
       `;
     }
   });
+  <script>
+  // Force live mode regardless of other code
+  (function() {
+    function forceLiveMode() {
+      console.log("Forcing live mode...");
+      
+      // Find and update the demo badge
+      const demoBadge = document.querySelector('.demo-badge');
+      if (demoBadge) {
+        demoBadge.textContent = 'LIVE MODE';
+        demoBadge.style.backgroundColor = '#4CAF50';
+        console.log("Updated demo badge to live mode");
+      } else {
+        console.log("Demo badge not found");
+      }
+      
+      // Update info message
+      const infoMessage = document.querySelector('.message.info');
+      if (infoMessage) {
+        infoMessage.innerHTML = `
+          <p><strong>LIVE MODE ACTIVE</strong> - This version is connected to your Square account.
+          Inventory data is loaded from Square and updates will affect your actual inventory.</p>
+        `;
+        console.log("Updated info message for live mode");
+      } else {
+        console.log("Info message not found");
+      }
+    }
+    
+    // Run immediately if document is already loaded
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+      forceLiveMode();
+    } else {
+      // Otherwise wait for DOMContentLoaded
+      document.addEventListener('DOMContentLoaded', forceLiveMode);
+    }
+    
+    // Also run after a delay to ensure it overrides any later scripts
+    setTimeout(forceLiveMode, 1000);
+    setTimeout(forceLiveMode, 3000);
+  })();
 </script>
 </body>
 </html>
