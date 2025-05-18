@@ -46,7 +46,6 @@ exports.handler = async function(event, context) {
       
       console.log("Fetching inventory data");
       // Get inventory counts for the location
-      // Note: Using batchRetrieveInventoryCounts instead of retrieveInventoryCounts
       const inventoryResponse = await inventoryApi.batchRetrieveInventoryCounts({
         locationIds: [locationId]
       });
@@ -69,7 +68,7 @@ exports.handler = async function(event, context) {
       }
 
       // Process the responses to create a combined inventory view
-      const processedInventory = processCatalogAndInventory(
+      const processedInventory = processSquareCatalog(
         catalogResponse.result.objects || [],
         inventoryResponse.result.counts || []
       );
@@ -159,8 +158,22 @@ function getDemoData() {
   ];
 }
 
-// Process catalog and inventory data to create a combined view
-function processCatalogAndInventory(catalogItems, inventoryCounts) {
+// Common disc golf vendors
+const knownVendors = [
+  "Innova", "Discraft", "Dynamic Discs", "MVP", "Axiom", "Streamline", 
+  "Latitude 64", "Westside", "Prodigy", "Gateway", "Kastaplast", "Discmania"
+];
+
+// Common plastic types
+const knownPlastics = [
+  "Star", "Champion", "DX", "Blizzard", "GStar", "Pro", "XT", "KC Pro", "Halo",
+  "ESP", "Z", "CryZtal", "Titanium", "Jawbreaker", "FLX", "Elite X",
+  "Neutron", "Plasma", "Proton", "Eclipse", "Electron", "Cosmic",
+  "Gold", "Opto", "VIP", "Tournament", "Fuzion", "Lucid", "BioFuzion"
+];
+
+// Process Square catalog to extract disc information
+function processSquareCatalog(catalogItems, inventoryCounts) {
   try {
     // Extract items and their variations from catalog
     const discs = [];
@@ -180,23 +193,42 @@ function processCatalogAndInventory(catalogItems, inventoryCounts) {
         return;
       }
       
-      // Extract custom attributes for mold, plastic, etc.
-      let mold = getCustomAttribute(item.itemData.customAttributeValues, 'mold') ||
-                item.itemData.name ||
-                'Unknown';
-                
-      let vendor = getCustomAttribute(item.itemData.customAttributeValues, 'vendor') ||
-                  'Unknown';
+      // Parse item name to extract info
+      const itemName = item.itemData.name;
+      
+      // Determine vendor from name or category
+      let vendor = "Unknown";
+      for (const knownVendor of knownVendors) {
+        if (itemName.includes(knownVendor)) {
+          vendor = knownVendor;
+          break;
+        }
+      }
+      
+      // Item name is likely to be the mold
+      let mold = itemName;
       
       if (item.itemData.variations) {
-        // Process each variation (could be different weights, colors, etc. of the same disc)
+        // Process each variation
         item.itemData.variations.forEach(variation => {
           if (!variation.itemVariationData) return;
           
-          // Extract variation specific attributes
-          const plastic = getCustomAttribute(variation.itemVariationData.customAttributeValues, 'plastic') || 
-                          getCustomAttribute(item.itemData.customAttributeValues, 'plastic') || 
-                          'Unknown';
+          const variationName = variation.itemVariationData.name || '';
+          const fullName = variationName ? `${itemName} ${variationName}` : itemName;
+          
+          // Determine plastic type
+          let plastic = "Unknown";
+          for (const knownPlastic of knownPlastics) {
+            if (fullName.includes(knownPlastic)) {
+              plastic = knownPlastic;
+              break;
+            }
+          }
+          
+          // If we didn't find a plastic, it's likely just called "Regular"
+          if (plastic === "Unknown" && variationName) {
+            plastic = variationName;
+          }
           
           // Get current stock
           const stock = inventoryMap[variation.id] ? parseInt(inventoryMap[variation.id]) : 0;
@@ -209,7 +241,7 @@ function processCatalogAndInventory(catalogItems, inventoryCounts) {
           // Create disc entry
           discs.push({
             id: variation.id,
-            name: `${plastic} ${mold}${variation.itemVariationData.name ? ' ' + variation.itemVariationData.name : ''}`,
+            name: fullName,
             sku: variation.itemVariationData.sku || '',
             stock: stock,
             price: price,
@@ -219,7 +251,7 @@ function processCatalogAndInventory(catalogItems, inventoryCounts) {
             // We don't have actual sales data, but these fields are expected by your frontend
             sales30: 0,
             sales90: 0,
-            variationName: variation.itemVariationData.name || '',
+            variationName: variationName,
             itemId: item.id
           });
         });
@@ -237,12 +269,4 @@ function processCatalogAndInventory(catalogItems, inventoryCounts) {
     // Return default demo data on error
     return getDemoData();
   }
-}
-
-// Helper function to extract custom attributes
-function getCustomAttribute(customAttributeValues, attributeName) {
-  if (!customAttributeValues) return null;
-  
-  const attribute = customAttributeValues[attributeName];
-  return attribute ? attribute.stringValue : null;
 }
