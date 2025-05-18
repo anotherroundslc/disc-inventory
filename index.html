@@ -3,97 +3,204 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Square Connection Test</title>
+  <title>Disc Golf Inventory Manager</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
-      max-width: 800px;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      max-width: 1200px;
       margin: 0 auto;
       padding: 20px;
+      background-color: #f5f5f5;
     }
     .container {
-      background: #f5f5f5;
+      background: white;
       border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
       padding: 20px;
       margin-bottom: 20px;
     }
+    h1, h2, h3 {
+      color: #333;
+      margin-top: 0;
+    }
     .btn {
-      background: #1a73e8;
+      background-color: #1a73e8;
       color: white;
       border: none;
       padding: 10px 15px;
       border-radius: 4px;
       cursor: pointer;
-      font-size: 16px;
-      display: inline-block;
+      font-size: 14px;
       text-decoration: none;
+      display: inline-block;
     }
-    #status {
-      margin-top: 20px;
-      padding: 10px;
+    .btn:hover {
+      background-color: #1557b0;
+    }
+    .hidden {
+      display: none !important;
+    }
+    #loading {
+      text-align: center;
+      margin: 20px 0;
+    }
+    .message {
+      padding: 15px;
+      margin-bottom: 15px;
       border-radius: 4px;
     }
-    .error {
-      background: #ffebee;
-      border: 1px solid #ffcdd2;
-    }
     .info {
-      background: #e3f2fd;
+      background-color: #e3f2fd;
       border: 1px solid #90caf9;
+    }
+    .success {
+      background-color: #e8f5e9;
+      border: 1px solid #c8e6c9;
+    }
+    .error {
+      background-color: #ffebee;
+      border: 1px solid #ffcdd2;
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>Square Connection Test</h1>
-    <p>Click the button below to test connection to Square:</p>
+  <!-- Start page - shown when not authenticated -->
+  <div class="container" id="auth-container">
+    <h1>Disc Golf Inventory Manager</h1>
+    <p>Connect to your Square account to manage your disc golf inventory.</p>
     
-    <a href="#" id="manual-connect" class="btn">Connect Manually</a>
-    <button id="connect-btn" class="btn">Connect via JavaScript</button>
+    <div id="status-message"></div>
     
-    <div id="status"></div>
+    <div class="message info">
+      <p><strong>Welcome!</strong> To get started, connect your Square account by clicking the button below.</p>
+    </div>
+    
+    <p>
+      <a href="#" id="connect-btn" class="btn">Connect to Square</a>
+    </p>
   </div>
-
+  
+  <!-- Main app - shown after authentication -->
+  <div class="container hidden" id="app-container">
+    <h1>Disc Golf Inventory Manager</h1>
+    <p>Your Square account is connected!</p>
+    
+    <div class="message success">
+      <p><strong>Success!</strong> You're now connected to Square.</p>
+      <p>Access token: <span id="token-preview"></span></p>
+    </div>
+    
+    <p>In the full implementation, this would show your inventory data and reorder recommendations.</p>
+    
+    <p>
+      <button id="disconnect-btn" class="btn">Disconnect</button>
+    </p>
+  </div>
+  
   <script>
     // Configuration
-    const applicationId = 'sq0idp-bici90kAD4rdS4sT0uf8GA';
-    const redirectUri = 'https://preeminent-puppy-be2708.netlify.app/auth-callback';
-    const scopes = ['ITEMS_READ', 'INVENTORY_READ', 'ORDERS_READ'];
+    const config = {
+      applicationId: 'sq0idp-bici90kAD4rdS4sT0uf8GA',
+      redirectUri: 'https://preeminent-puppy-be2708.netlify.app/auth-callback.html',
+      scopes: ['ITEMS_READ', 'INVENTORY_READ', 'ORDERS_READ']
+    };
     
-    // Build OAuth URL
-    const oauthUrl = `https://connect.squareup.com/oauth2/authorize?client_id=${applicationId}&scope=${scopes.join('+')}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}`;
+    // DOM references
+    const authContainer = document.getElementById('auth-container');
+    const appContainer = document.getElementById('app-container');
+    const connectBtn = document.getElementById('connect-btn');
+    const disconnectBtn = document.getElementById('disconnect-btn');
+    const tokenPreview = document.getElementById('token-preview');
+    const statusMessage = document.getElementById('status-message');
     
-    // Set up manual connect link
-    document.getElementById('manual-connect').href = oauthUrl;
+    // Initialize the app
+    document.addEventListener('DOMContentLoaded', function() {
+      // Check for token in localStorage
+      const token = localStorage.getItem('square_access_token');
+      
+      if (token) {
+        // We're already authenticated
+        showApp(token);
+      } else {
+        // Check for token in URL hash (might be passed back from auth-callback)
+        const hash = window.location.hash.substring(1);
+        if (hash && hash.length > 20) {
+          // Save token and show app
+          localStorage.setItem('square_access_token', hash);
+          showApp(hash);
+          
+          // Clear hash from URL
+          history.replaceState(null, null, ' ');
+        } else {
+          // Not authenticated
+          showAuth();
+        }
+      }
+      
+      // Set up event listeners
+      connectBtn.addEventListener('click', connectToSquare);
+      disconnectBtn.addEventListener('click', disconnect);
+    });
     
-    // Set up connect button
-    document.getElementById('connect-btn').addEventListener('click', function() {
-      const statusDiv = document.getElementById('status');
-      statusDiv.innerHTML = '';
-      statusDiv.className = 'info';
-      statusDiv.textContent = 'Redirecting to Square...';
+    // Show authentication page
+    function showAuth() {
+      authContainer.classList.remove('hidden');
+      appContainer.classList.add('hidden');
+    }
+    
+    // Show the main app
+    function showApp(token) {
+      authContainer.classList.add('hidden');
+      appContainer.classList.remove('hidden');
+      
+      // Show token preview (first 5 chars)
+      if (token && token.length > 5) {
+        tokenPreview.textContent = token.substring(0, 5) + '...';
+      }
+    }
+    
+    // Connect to Square
+    function connectToSquare(e) {
+      e.preventDefault();
       
       try {
-        console.log('Redirecting to:', oauthUrl);
+        // Build OAuth URL
+        const oauthUrl = `https://connect.squareup.com/oauth2/authorize?client_id=${config.applicationId}&scope=${config.scopes.join('+')}&response_type=code&redirect_uri=${encodeURIComponent(config.redirectUri)}`;
+        
+        // Show status message
+        statusMessage.innerHTML = `
+          <div class="message info">
+            <p>Redirecting to Square for authentication...</p>
+          </div>
+        `;
+        
+        // Redirect to Square
         window.location.href = oauthUrl;
       } catch (error) {
-        console.error('Redirect error:', error);
-        statusDiv.className = 'error';
-        statusDiv.textContent = 'Error: ' + error.message;
+        console.error('Error connecting to Square:', error);
+        
+        statusMessage.innerHTML = `
+          <div class="message error">
+            <p>Error connecting to Square: ${error.message}</p>
+          </div>
+        `;
       }
-    });
+    }
     
-    // Log on page load
-    window.addEventListener('DOMContentLoaded', function() {
-      console.log('Page loaded. OAuth URL:', oauthUrl);
-      document.getElementById('status').innerHTML = `
-        <div>
-          <p>Ready to connect with Square.</p>
-          <p>If the buttons don't work, you can copy this URL manually:</p>
-          <textarea style="width: 100%; height: 60px;">${oauthUrl}</textarea>
+    // Disconnect from Square
+    function disconnect() {
+      localStorage.removeItem('square_access_token');
+      localStorage.removeItem('square_location_id');
+      showAuth();
+      
+      statusMessage.innerHTML = `
+        <div class="message info">
+          <p>You've been disconnected from Square.</p>
         </div>
       `;
-    });
+    }
   </script>
 </body>
 </html>
