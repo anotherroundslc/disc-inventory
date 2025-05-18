@@ -1,13 +1,12 @@
-// netlify/functions/updateInventory.js
+// netlify/functions/getInventory.js
 const { Client, Environment } = require('square');
-// For compatibility with Netlify Functions const { randomUUID } = require('crypto');
 
 exports.handler = async function(event, context) {
   // Set CORS headers
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, OPTIONS',
   };
 
   // Handle preflight OPTIONS request
@@ -19,79 +18,69 @@ exports.handler = async function(event, context) {
     };
   }
 
-  // Only allow POST requests for actual updates
-  if (event.httpMethod !== 'POST') {
-    return {
-      statusCode: 405,
-      headers,
-      body: JSON.stringify({ success: false, error: 'Method not allowed' }),
-    };
-  }
-
   try {
-    const requestData = JSON.parse(event.body);
-    const { catalogObjectId, quantity, fromState, toState } = requestData;
-
-    if (!catalogObjectId || !quantity || !fromState || !toState) {
-      return {
-        statusCode: 400,
-        headers,
-        body: JSON.stringify({ 
-          success: false, 
-          error: 'Missing required fields' 
-        }),
-      };
-    }
-
-    // Initialize Square client
+    console.log("Initializing Square client");
+    
+    // Initialize Square client with your credentials
     const squareClient = new Client({
       accessToken: process.env.SQUARE_ACCESS_TOKEN,
       environment: Environment.Production
     });
 
-    const { inventoryApi } = squareClient;
+    console.log("Getting Square API clients");
+    
+    // Get API clients
+    const inventoryApi = squareClient.inventoryApi;
+    const catalogApi = squareClient.catalogApi;
     const locationId = process.env.SQUARE_LOCATION_ID;
 
-    // Generate a unique idempotency key to prevent duplicate operations
-    const idempotencyKey = randomUUID();
-
-    // Create inventory adjustment
-    const adjustment = {
-      type: 'ADJUSTMENT',
-      adjustment: {
-        catalogObjectId,
-        fromState,
-        toState,
-        quantity,
-        locationId,
-        occurredAt: new Date().toISOString()
-      }
-    };
-
-    // Make the API call to update inventory
-    const response = await inventoryApi.batchChangeInventory({
-      idempotencyKey,
-      changes: [adjustment]
-    });
-
-    return {
-      statusCode: 200,
-      headers,
-      body: JSON.stringify({ 
-        success: true, 
-        data: response.result 
-      }),
-    };
-  } catch (error) {
-    console.error('Error updating inventory:', error);
+    console.log("Starting Square API calls");
     
-    return {
-      statusCode: 500,
-      headers,
-      body: JSON.stringify({ 
-        success: false, 
-        error: error.message || 'Failed to update inventory'
-      }),
-    };
-  }
-};
+    try {
+      // Get catalog items (discs)
+      console.log("Fetching catalog data");
+      const catalogResponse = await catalogApi.listCatalog(
+        undefined,
+        "ITEM"
+      );
+      
+      console.log("Fetching inventory data");
+      // Get inventory counts for the location
+      // Note: Using batchRetrieveInventoryCounts instead of retrieveInventoryCounts
+      const inventoryResponse = await inventoryApi.batchRetrieveInventoryCounts({
+        locationIds: [locationId]
+      });
+      
+      console.log("Got responses from Square");
+      console.log("Catalog items:", catalogResponse.result.objects ? catalogResponse.result.objects.length : 0);
+      console.log("Inventory counts:", inventoryResponse.result.counts ? inventoryResponse.result.counts.length : 0);
+
+      // If we have no catalog items, return dummy data for testing
+      if (!catalogResponse.result.objects || catalogResponse.result.objects.length === 0) {
+        console.log("No catalog items found, returning demo data");
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({ 
+            success: true, 
+            inventory: getDemoData()
+          }),
+        };
+      }
+
+      // Process the responses to create a combined inventory view
+      const processedInventory = processCatalogAndInventory(
+        catalogResponse.result.objects || [],
+        inventoryResponse.result.counts || []
+      );
+
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ 
+          success: true, 
+          inventory: processedInventory
+        }),
+      };
+    } catch (apiError) {
+      console.error('Square API
