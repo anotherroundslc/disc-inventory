@@ -37,27 +37,57 @@ exports.handler = async function(event, context) {
     console.log("Starting Square API calls");
     
     try {
-      // Get catalog items (discs)
-      console.log("Fetching catalog data");
-      const catalogResponse = await catalogApi.listCatalog(
-        undefined,
-        "ITEM"
-      );
+      // Get all catalog items with pagination
+      console.log("Fetching catalog data with pagination");
       
-      console.log("Fetching inventory data");
-      // Get inventory counts for the location
-      const inventoryResponse = await inventoryApi.batchRetrieveInventoryCounts({
-        locationIds: [locationId]
-      });
+      let allCatalogItems = [];
+      let cursor = null;
+      let hasMore = true;
       
-      console.log("Got responses from Square");
-      console.log("Catalog items count:", (catalogResponse.result.objects || []).length);
-      console.log("Inventory counts count:", (inventoryResponse.result.counts || []).length);
+      // Fetch all catalog items with pagination
+      while (hasMore) {
+        const catalogResponse = await catalogApi.listCatalog(
+          cursor,
+          "ITEM"
+        );
+        
+        if (catalogResponse.result.objects) {
+          allCatalogItems = allCatalogItems.concat(catalogResponse.result.objects);
+        }
+        
+        cursor = catalogResponse.result.cursor;
+        hasMore = !!cursor;
+      }
+      
+      console.log(`Fetched ${allCatalogItems.length} total catalog items`);
+      
+      // Get all inventory counts with pagination
+      console.log("Fetching inventory data with pagination");
+      let allInventoryCounts = [];
+      cursor = null;
+      hasMore = true;
+      
+      // Fetch inventory counts for the location
+      while (hasMore) {
+        const inventoryResponse = await inventoryApi.batchRetrieveInventoryCounts({
+          locationIds: [locationId],
+          cursor: cursor
+        });
+        
+        if (inventoryResponse.result.counts) {
+          allInventoryCounts = allInventoryCounts.concat(inventoryResponse.result.counts);
+        }
+        
+        cursor = inventoryResponse.result.cursor;
+        hasMore = !!cursor;
+      }
+      
+      console.log(`Fetched ${allInventoryCounts.length} inventory count records`);
 
       // Process the responses to create a combined inventory view
       const processedInventory = processCatalogAndInventory(
-        catalogResponse.result.objects || [],
-        inventoryResponse.result.counts || []
+        allCatalogItems,
+        allInventoryCounts
       );
 
       return {
@@ -65,7 +95,8 @@ exports.handler = async function(event, context) {
         headers,
         body: JSON.stringify({ 
           success: true, 
-          inventory: processedInventory
+          inventory: processedInventory,
+          totalItems: processedInventory.length
         }),
       };
     } catch (apiError) {
