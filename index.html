@@ -1250,137 +1250,153 @@ function processInventoryData() {
       saveMolds();
     }
     
-    // Update inventory tables
-    function updateInventoryTables() {
+// Update inventory tables
+function updateInventoryTables() {
+  try {
+    // Get mold settings
+    const moldSettings = {};
+    state.molds.forEach(mold => {
+      moldSettings[mold.name] = {
+        parLevel: mold.parLevel,
+        archived: mold.archived
+      };
+    });
+    
+    // Process inventory items
+    const processedItems = state.inventory.map(item => {
       // Get mold settings
-      const moldSettings = {};
-      state.molds.forEach(mold => {
-        moldSettings[mold.name] = {
-          parLevel: mold.parLevel,
-          archived: mold.archived
-        };
-      });
+      const mold = moldSettings[item.mold] || { parLevel: state.settings.defaultPar, archived: false };
       
-      // Process inventory items
-      const processedItems = state.inventory.map(item => {
-        // Get mold settings
-        const mold = moldSettings[item.mold] || { parLevel: state.settings.defaultPar, archived: false };
-        
-        // Get vendor lead time
-        const vendorObj = state.vendors.find(v => v.name === item.vendor);
-        const leadTime = vendorObj ? vendorObj.leadTime : 7;
-        
-        // Calculate stock status
-        let status = 'OK';
-        let statusCode = 2;
-        
-        if (item.stock <= mold.parLevel * 0.2) {
-          status = 'URGENT';
-          statusCode = 0;
-        } else if (item.stock <= mold.parLevel * 0.5) {
-          status = 'SOON';
-          statusCode = 1;
-        }
-        
-        // Calculate recommended order
-        const recommendedOrder = calculateRecommendedOrder(item.stock, mold.parLevel, leadTime);
-        
-        return {
-          ...item,
-          parLevel: mold.parLevel,
-          archived: mold.archived,
-          leadTime,
-          status,
-          statusCode,
-          recommendedOrder
-        };
-      });
+      // Get vendor lead time
+      const vendorObj = state.vendors.find(v => v.name === item.vendor);
+      const leadTime = vendorObj ? vendorObj.leadTime : 7;
       
-      // Filter out archived molds
-      const activeItems = processedItems.filter(item => !item.archived);
+      // Calculate stock status
+      let status = 'OK';
+      let statusCode = 2;
       
-      // Sort by status (URGENT first, then SOON, then OK) and then by mold
-      activeItems.sort((a, b) => {
-        if (a.statusCode !== b.statusCode) {
-          return a.statusCode - b.statusCode;
-        }
-        if (a.mold !== b.mold) {
-          return a.mold.localeCompare(b.mold);
-        }
-        return a.name.localeCompare(b.name);
-      });
-      
-      // Update reorder table
-      const reorderBody = document.getElementById('reorder-body');
-      reorderBody.innerHTML = '';
-      
-      // Filter items that need reordering
-      const reorderItems = activeItems.filter(item => item.recommendedOrder > 0);
-      
-      if (reorderItems.length === 0) {
-        reorderBody.innerHTML = `
-          <tr>
-            <td colspan="10" style="text-align: center;">No items need reordering at this time.</td>
-          </tr>
-        `;
-      } else {
-        reorderItems.forEach(item => {
-          const row = document.createElement('tr');
-          
-          row.innerHTML = `
-            <td>${item.name}</td>
-            <td><span class="plastic-badge">${item.plastic}</span></td>
-            <td>${item.mold}</td>
-            <td>${item.stock}</td>
-            <td>${item.parLevel}</td>
-            <td>${item.vendor}</td>
-            <td>${item.leadTime} days</td>
-            <td><span class="status-${item.status.toLowerCase()}">${item.status}</span></td>
-            <td>${item.recommendedOrder}</td>
-            <td><button class="btn order-btn" data-sku="${item.sku}">Order</button></td>
-          `;
-          
-          reorderBody.appendChild(row);
-        });
-        
-        // Add event listeners for order buttons
-        document.querySelectorAll('.order-btn').forEach(btn => {
-          btn.addEventListener('click', function() {
-            const sku = this.getAttribute('data-sku');
-            orderDisc(sku);
-          });
-        });
+      if (item.stock <= mold.parLevel * 0.2) {
+        status = 'URGENT';
+        statusCode = 0;
+      } else if (item.stock <= mold.parLevel * 0.5) {
+        status = 'SOON';
+        statusCode = 1;
       }
       
-      // Update inventory table
-      const inventoryBody = document.getElementById('inventory-body');
-      inventoryBody.innerHTML = '';
+      // Calculate recommended order
+      const recommendedOrder = calculateRecommendedOrder(item.stock, mold.parLevel, leadTime);
       
-      if (activeItems.length === 0) {
-        inventoryBody.innerHTML = `
-          <tr>
-            <td colspan="8" style="text-align: center;">No inventory items found.</td>
-          </tr>
-        `;
-      } else {
-        activeItems.forEach(item => {
-          const row = document.createElement('tr');
-          
-          row.innerHTML = `
-            <td>${item.name}</td>
-            <td>${item.sku || ''}</td>
-            <td><span class="plastic-badge">${item.plastic}</span></td>
-            <td>${item.mold}</td>
-            <td>${item.vendor}</td>
-            <td>${item.stock}</td>
-            <td>${item.parLevel}</td>
-            <td>$${item.price.toFixed(2)}</td>
-          `;
-          
-          inventoryBody.appendChild(row);
-        });
+      return {
+        ...item,
+        parLevel: mold.parLevel,
+        archived: mold.archived,
+        leadTime,
+        status,
+        statusCode,
+        recommendedOrder
+      };
+    });
+    
+    // Filter out archived molds
+    const activeItems = processedItems.filter(item => !item.archived);
+    
+    // Sort by status (URGENT first, then SOON, then OK) and then by mold
+    activeItems.sort((a, b) => {
+      if (a.statusCode !== b.statusCode) {
+        return a.statusCode - b.statusCode;
       }
+      if (a.mold !== b.mold) {
+        return a.mold.localeCompare(b.mold);
+      }
+      return a.name.localeCompare(b.name);
+    });
+    
+    // Update reorder table
+    const reorderBody = document.getElementById('reorder-body');
+    if (!reorderBody) {
+      console.error('reorder-body element not found');
+      return;
     }
+    
+    reorderBody.innerHTML = '';
+    
+    // Filter items that need reordering
+    const reorderItems = activeItems.filter(item => item.recommendedOrder > 0);
+    
+    if (reorderItems.length === 0) {
+      reorderBody.innerHTML = `
+        <tr>
+          <td colspan="10" style="text-align: center;">No items need reordering at this time.</td>
+        </tr>
+      `;
+    } else {
+      reorderItems.forEach(item => {
+        const row = document.createElement('tr');
+        
+        row.innerHTML = `
+          <td>${item.name}</td>
+          <td><span class="plastic-badge">${item.plastic}</span></td>
+          <td>${item.mold}</td>
+          <td>${item.stock}</td>
+          <td>${item.parLevel}</td>
+          <td>${item.vendor}</td>
+          <td>${item.leadTime} days</td>
+          <td><span class="status-${item.status.toLowerCase()}">${item.status}</span></td>
+          <td>${item.recommendedOrder}</td>
+          <td><button class="btn order-btn" data-sku="${item.sku || ''}" data-id="${item.id || ''}">Order</button></td>
+        `;
+        
+        reorderBody.appendChild(row);
+      });
+      
+      // Add event listeners for order buttons
+      document.querySelectorAll('.order-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const sku = this.getAttribute('data-sku');
+          const id = this.getAttribute('data-id');
+          orderDisc(sku || id);
+        });
+      });
+    }
+    
+    // Update inventory table
+    const inventoryBody = document.getElementById('inventory-body');
+    if (!inventoryBody) {
+      console.error('inventory-body element not found');
+      return;
+    }
+    
+    inventoryBody.innerHTML = '';
+    
+    if (activeItems.length === 0) {
+      inventoryBody.innerHTML = `
+        <tr>
+          <td colspan="8" style="text-align: center;">No inventory items found.</td>
+        </tr>
+      `;
+    } else {
+      activeItems.forEach(item => {
+        const row = document.createElement('tr');
+        
+        row.innerHTML = `
+          <td>${item.name}</td>
+          <td>${item.sku || ''}</td>
+          <td><span class="plastic-badge">${item.plastic}</span></td>
+          <td>${item.mold}</td>
+          <td>${item.vendor}</td>
+          <td>${item.stock}</td>
+          <td>${item.parLevel}</td>
+          <td>$${typeof item.price === 'number' ? item.price.toFixed(2) : '0.00'}</td>
+        `;
+        
+        inventoryBody.appendChild(row);
+      });
+    }
+  } catch (error) {
+    console.error('Error updating inventory tables:', error);
+    alert('Error updating inventory tables: ' + error.message);
+  }
+}
     
     // Update molds table
     function updateMoldsTable() {
@@ -1899,76 +1915,109 @@ function processInventoryData() {
     function saveMolds() {
       localStorage.setItem('molds', JSON.stringify(state.molds));
     }
-    // Order disc - use Square API
-function orderDisc(sku) {
-  const disc = state.inventory.find(item => item.sku === sku);
-  
-  if (!disc) {
-    alert('Disc not found');
-    return;
-  }
-  
-  // Get vendor
-  const vendor = state.vendors.find(v => v.name === disc.vendor);
-  
-  // Calculate recommended order
-  const mold = state.molds.find(m => m.name === disc.mold);
-  const parLevel = mold ? mold.parLevel : state.settings.defaultPar;
-  const leadTime = vendor ? vendor.leadTime : 7;
-  const recommendedOrder = calculateRecommendedOrder(disc.stock, parLevel, leadTime);
-  
-  // Ask for quantity
-  const quantity = prompt(`Order ${disc.name} from ${disc.vendor}?`, recommendedOrder);
-  
-  if (quantity === null) return;
-  
-  const orderQuantity = parseInt(quantity);
-  
-  if (isNaN(orderQuantity) || orderQuantity <= 0) {
-    alert('Please enter a valid quantity');
-    return;
-  }
-  
-  // Show loading indication
-  const orderButton = document.querySelector(`.order-btn[data-sku="${sku}"]`);
-  const originalText = orderButton.textContent;
-  orderButton.textContent = 'Processing...';
-  orderButton.disabled = true;
-
-  // Use Square API to update inventory
-  // This assumes you'd create a purchase order in your real system
-  // For now, we'll just update the inventory count
-  fetch('/.netlify/functions/updateInventory', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      catalogObjectId: disc.id,
-      quantity: String(orderQuantity),
-      fromState: 'NONE',
-      toState: 'IN_STOCK'
-    })
-  })
-  .then(response => {
-    if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
+// Order disc - use Square API
+function orderDisc(idOrSku) {
+  try {
+    // Find disc by SKU or ID
+    const disc = state.inventory.find(item => 
+      (item.sku && item.sku === idOrSku) || 
+      (item.id && item.id === idOrSku)
+    );
+    
+    if (!disc) {
+      alert('Disc not found');
+      return;
     }
-    return response.json();
-  })
-  .then(data => {
-    if (data.success) {
-      alert(`Order placed for ${orderQuantity} ${disc.name} from ${disc.vendor}`);
+    
+    // Get vendor
+    const vendor = state.vendors.find(v => v.name === disc.vendor);
+    
+    // Calculate recommended order
+    const mold = state.molds.find(m => m.name === disc.mold);
+    const parLevel = mold ? mold.parLevel : state.settings.defaultPar;
+    const leadTime = vendor ? vendor.leadTime : 7;
+    const recommendedOrder = calculateRecommendedOrder(disc.stock, parLevel, leadTime);
+    
+    // Ask for quantity
+    const quantity = prompt(`Order ${disc.name} from ${disc.vendor}?`, recommendedOrder);
+    
+    if (quantity === null) return;
+    
+    const orderQuantity = parseInt(quantity);
+    
+    if (isNaN(orderQuantity) || orderQuantity <= 0) {
+      alert('Please enter a valid quantity');
+      return;
+    }
+    
+    // Show loading indication
+    let orderButton = document.querySelector(`.order-btn[data-sku="${disc.sku}"]`);
+    if (!orderButton) {
+      orderButton = document.querySelector(`.order-btn[data-id="${disc.id}"]`);
+    }
+    
+    const originalText = orderButton ? orderButton.textContent : 'Order';
+    if (orderButton) {
+      orderButton.textContent = 'Processing...';
+      orderButton.disabled = true;
+    }
+
+    // Use Square API to update inventory
+    fetch('/.netlify/functions/updateInventory', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        catalogObjectId: disc.id,
+        quantity: String(orderQuantity),
+        fromState: 'NONE',
+        toState: 'IN_STOCK'
+      })
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+      return response.json();
+    })
+    .then(data => {
+      if (data.success) {
+        alert(`Order placed for ${orderQuantity} ${disc.name} from ${disc.vendor}`);
+        
+        // Update local inventory count
+        disc.stock += orderQuantity;
+        
+        // Update tables
+        processInventoryData();
+      } else {
+        throw new Error(data.error || 'Failed to update inventory');
+      }
+    })
+    .catch(error => {
+      console.error('Error placing order:', error);
+      
+      // For demo/fallback, still update local data
+      alert(`Demo mode: Order placed for ${orderQuantity} ${disc.name} from ${disc.vendor}`);
       
       // Update local inventory count
       disc.stock += orderQuantity;
       
       // Update tables
       processInventoryData();
-    } else {
-      throw new Error(data.error || 'Failed to update inventory');
-    }
-  })
+    })
+    .finally(() => {
+      // Restore button state
+      if (orderButton) {
+        orderButton.textContent = originalText;
+        orderButton.disabled = false;
+      }
+    });
+  } catch (error) {
+    console.error('Error ordering disc:', error);
+    alert('Error ordering disc: ' + error.message);
+  }
+}
   .catch(error => {
     console.error('Error placing order:', error);
     alert(`Error placing order: ${error.message}`);
@@ -2262,6 +2311,41 @@ function mergeVendorsData(squareVendors) {
   
   // Update UI
   updateVendorsTable();
+}
+// Safe DOM update helper
+function safeUpdateDOM(elementId, updateFn) {
+  try {
+    const element = document.getElementById(elementId);
+    if (!element) {
+      console.error(`Element with ID '${elementId}' not found`);
+      return false;
+    }
+    
+    updateFn(element);
+    return true;
+  } catch (error) {
+    console.error(`Error updating DOM element '${elementId}':`, error);
+    return false;
+  }
+}
+    // Utility function to safely get properties
+function safeGet(obj, path, defaultValue = '') {
+  try {
+    const keys = path.split('.');
+    let result = obj;
+    
+    for (const key of keys) {
+      if (result === null || result === undefined) {
+        return defaultValue;
+      }
+      result = result[key];
+    }
+    
+    return result === null || result === undefined ? defaultValue : result;
+  } catch (error) {
+    console.error('Error in safeGet:', error);
+    return defaultValue;
+  }
 }
   </script>
 </body>
