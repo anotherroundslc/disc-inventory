@@ -3,360 +3,38 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Disc Golf Inventory Manager</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <title>Square OAuth Test</title>
   <style>
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      line-height: 1.6;
-      color: #333;
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 20px;
-      background-color: #f5f5f5;
-    }
-    .container {
-      background: white;
-      border-radius: 8px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-      padding: 20px;
-      margin-bottom: 20px;
-    }
-    h1, h2, h3 {
-      color: #333;
-      margin-top: 0;
-    }
-    .btn {
-      background-color: #1a73e8;
-      color: white;
-      border: none;
-      padding: 10px 15px;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 14px;
-      text-decoration: none;
-      display: inline-block;
-    }
-    .btn:hover {
-      background-color: #1557b0;
-    }
-    .hidden {
-      display: none !important;
-    }
-    #loading {
-      text-align: center;
-      margin: 20px 0;
-    }
-    .spinner {
-      animation: spin 1s linear infinite;
-      display: inline-block;
-    }
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-    .tabs {
-      display: flex;
-      border-bottom: 1px solid #ddd;
-      margin-bottom: 20px;
-    }
-    .tab {
-      padding: 10px 20px;
-      cursor: pointer;
-      border-bottom: 2px solid transparent;
-    }
-    .tab.active {
-      border-bottom: 2px solid #1a73e8;
-      font-weight: bold;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin: 15px 0;
-    }
-    th, td {
-      text-align: left;
-      padding: 12px;
-      border-bottom: 1px solid #ddd;
-    }
-    th {
-      background-color: #f8f9fa;
-      font-weight: 500;
-    }
-    .status-urgent {
-      background-color: #f44336;
-      color: white;
-      padding: 3px 8px;
-      border-radius: 4px;
-      font-size: 12px;
-    }
-    .status-soon {
-      background-color: #ff9800;
-      color: white;
-      padding: 3px 8px;
-      border-radius: 4px;
-      font-size: 12px;
-    }
-    .status-ok {
-      background-color: #4CAF50;
-      color: white;
-      padding: 3px 8px;
-      border-radius: 4px;
-      font-size: 12px;
-    }
-    .plastic-badge {
-      display: inline-block;
-      padding: 3px 8px;
-      background-color: #9c27b0;
-      color: white;
-      border-radius: 12px;
-      font-size: 12px;
-    }
-    .filters {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 15px;
-      margin-bottom: 15px;
-    }
-    .filters > div {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    input, select {
-      padding: 8px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-    }
+    body { font-family: Arial; max-width: 800px; margin: 0 auto; padding: 20px; }
+    .container { background: #f5f5f5; padding: 20px; border-radius: 8px; }
+    .btn { background: #1a73e8; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; }
   </style>
 </head>
 <body>
-  <div class="container" id="auth-container">
-    <h1>Disc Golf Inventory Manager</h1>
-    <p>Connect to your Square account to manage your disc golf inventory.</p>
+  <div class="container">
+    <h1>Square OAuth Test</h1>
+    <p>Click the button to test OAuth connection:</p>
+    <button id="connect-btn" class="btn">Connect to Square</button>
     
-    <div id="auth-section">
-      <p>Click the button below to connect your Square account:</p>
-      <a href="#" id="connect-btn" class="btn">Connect to Square</a>
-    </div>
-    
-    <div id="loading" class="hidden">
-      <p><i class="fas fa-spinner spinner"></i> Connecting to Square...</p>
-    </div>
-  </div>
-  
-  <div id="app-container" class="hidden">
-    <div class="container">
-      <h1>Disc Golf Inventory Manager</h1>
-      <p>A daily inventory management system for your disc golf shop</p>
-      
-      <div class="tabs">
-        <div class="tab active" data-tab="reorder">Reorder Recommendations</div>
-        <div class="tab" data-tab="bestsellers">Best Sellers</div>
-        <div class="tab" data-tab="inventory">Full Inventory</div>
-        <div class="tab" data-tab="molds">Mold Settings</div>
-        <div class="tab" data-tab="vendors">Vendor Settings</div>
-        <div class="tab" data-tab="settings">System Settings</div>
-      </div>
-      
-      <div id="reorder-tab" class="tab-content">
-        <h2>Reorder Recommendations</h2>
-        <p>Based on your turnover rate, vendor lead times, and par levels</p>
-        
-        <div class="filters">
-          <div>
-            <label for="status-filter">Status:</label>
-            <select id="status-filter">
-              <option value="all">All</option>
-              <option value="urgent">Urgent</option>
-              <option value="soon">Order Soon</option>
-              <option value="ok">OK</option>
-            </select>
-          </div>
-          <div>
-            <label for="vendor-filter">Vendor:</label>
-            <select id="vendor-filter">
-              <option value="all">All Vendors</option>
-              <option value="Innova">Innova</option>
-              <option value="Discraft">Discraft</option>
-              <option value="MVP">MVP</option>
-            </select>
-          </div>
-          <div>
-            <label for="plastic-filter">Plastic:</label>
-            <select id="plastic-filter">
-              <option value="all">All Types</option>
-              <option value="Star">Star</option>
-              <option value="Champion">Champion</option>
-              <option value="ESP">ESP</option>
-              <option value="Z">Z</option>
-            </select>
-          </div>
-          <button id="refresh-data" class="btn">Refresh Data</button>
-        </div>
-        
-        <div id="loading-data" class="hidden">
-          <p><i class="fas fa-spinner spinner"></i> Loading inventory data...</p>
-        </div>
-        
-        <div id="reorder-content">
-          <table id="reorder-table">
-            <thead>
-              <tr>
-                <th>Disc Name</th>
-                <th>Plastic</th>
-                <th>Mold</th>
-                <th>Stock</th>
-                <th>Par</th>
-                <th>Vendor</th>
-                <th>Lead Time</th>
-                <th>Status</th>
-                <th>Order</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody id="reorder-body">
-              <!-- Sample data - will be replaced with real data -->
-              <tr>
-                <td>Star Destroyer</td>
-                <td><span class="plastic-badge">Star</span></td>
-                <td>Destroyer</td>
-                <td>5</td>
-                <td>15</td>
-                <td>Innova</td>
-                <td>7 days</td>
-                <td><span class="status-soon">SOON</span></td>
-                <td>10</td>
-                <td><button class="btn">Order</button></td>
-              </tr>
-              <tr>
-                <td>ESP Zone</td>
-                <td><span class="plastic-badge">ESP</span></td>
-                <td>Zone</td>
-                <td>2</td>
-                <td>15</td>
-                <td>Discraft</td>
-                <td>7 days</td>
-                <td><span class="status-urgent">URGENT</span></td>
-                <td>15</td>
-                <td><button class="btn">Order</button></td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-      
-      <div id="bestsellers-tab" class="tab-content hidden">
-        <h2>Coming Soon!</h2>
-        <p>The Best Sellers tab is under development and will be available soon.</p>
-      </div>
-      
-      <div id="inventory-tab" class="tab-content hidden">
-        <h2>Coming Soon!</h2>
-        <p>The Full Inventory tab is under development and will be available soon.</p>
-      </div>
-      
-      <div id="molds-tab" class="tab-content hidden">
-        <h2>Coming Soon!</h2>
-        <p>The Mold Settings tab is under development and will be available soon.</p>
-      </div>
-      
-      <div id="vendors-tab" class="tab-content hidden">
-        <h2>Coming Soon!</h2>
-        <p>The Vendor Settings tab is under development and will be available soon.</p>
-      </div>
-      
-      <div id="settings-tab" class="tab-content hidden">
-        <h2>Coming Soon!</h2>
-        <p>The System Settings tab is under development and will be available soon.</p>
-      </div>
-    </div>
+    <div id="result" style="margin-top: 20px;"></div>
   </div>
   
   <script>
-    // Configuration
-    const config = {
-      applicationId: 'sq0idp-bici90kAD4rdS4sT0uf8GA',
-      redirectUri: 'https://preeminent-puppy-be2708.netlify.app/.netlify/functions/auth',
-      scopes: ['ITEMS_READ', 'INVENTORY_READ', 'ORDERS_READ']
-    };
-    
-    // DOM References
-    const connectBtn = document.getElementById('connect-btn');
-    const authContainer = document.getElementById('auth-container');
-    const appContainer = document.getElementById('app-container');
-    const loadingIndicator = document.getElementById('loading');
-    
-    // Check if we have a token in localStorage
-    const token = localStorage.getItem('square_access_token');
-    
-    // Initialize the application
-    document.addEventListener('DOMContentLoaded', function() {
-      if (token) {
-        // We have a token, show the app
-        authContainer.classList.add('hidden');
-        appContainer.classList.remove('hidden');
-        loadInventoryData();
-      }
+    document.getElementById('connect-btn').addEventListener('click', function() {
+      const applicationId = 'sq0idp-bici90kAD4rdS4sT0uf8GA';
+      const redirectUri = 'https://preeminent-puppy-be2708.netlify.app/auth-callback';
+      const scopes = ['ITEMS_READ', 'INVENTORY_READ', 'ORDERS_READ'];
       
-      // Set up event listeners
-      setupEventListeners();
+      // Build OAuth URL
+      const url = `https://connect.squareup.com/oauth2/authorize?client_id=${applicationId}&scope=${scopes.join('+')}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}`;
+      
+      // Display URL for verification
+      document.getElementById('result').innerHTML = `
+        <p>Redirect URL configured as: <code>${redirectUri}</code></p>
+        <p>Make sure this EXACTLY matches what's in your Square Developer Dashboard!</p>
+        <p><a href="${url}" target="_blank">Click here to test the OAuth flow</a></p>
+      `;
     });
-    
-    // Set up event listeners
-    function setupEventListeners() {
-      // Connect button
-      if (connectBtn) {
-        connectBtn.addEventListener('click', function(e) {
-          e.preventDefault();
-          initiateOAuth();
-        });
-      }
-      
-      // Tab navigation
-      document.querySelectorAll('.tab').forEach(tab => {
-        tab.addEventListener('click', function() {
-          // Remove active class from all tabs
-          document.querySelectorAll('.tab').forEach(t => {
-            t.classList.remove('active');
-          });
-          
-          // Hide all tab content
-          document.querySelectorAll('.tab-content').forEach(content => {
-            content.classList.add('hidden');
-          });
-          
-          // Show the selected tab and content
-          this.classList.add('active');
-          const tabId = this.getAttribute('data-tab') + '-tab';
-          document.getElementById(tabId).classList.remove('hidden');
-        });
-      });
-      
-      // Refresh data button
-      const refreshBtn = document.getElementById('refresh-data');
-      if (refreshBtn) {
-        refreshBtn.addEventListener('click', loadInventoryData);
-      }
-    }
-    
-    // Initialize OAuth flow
-    function initiateOAuth() {
-      // Show loading indicator
-      loadingIndicator.classList.remove('hidden');
-      
-      // Build the OAuth URL
-      const oauthUrl = `https://connect.squareup.com/oauth2/authorize?client_id=${config.applicationId}&scope=${config.scopes.join('+')}&response_type=code&redirect_uri=${encodeURIComponent(config.redirectUri)}`;
-      
-      // Redirect to Square OAuth page
-      window.location.href = oauthUrl;
-    }
-    
-    // Load inventory data
-    function loadInventoryData() {
-      // Implementation will be added in Phase 2
-      console.log('Loading inventory data...');
-    }
   </script>
 </body>
 </html>
