@@ -10,63 +10,72 @@ exports.handler = async function(event, context) {
   };
 
   try {
+    console.log("Starting catalog test function");
+    console.log("Access token exists:", !!process.env.SQUARE_ACCESS_TOKEN);
+    console.log("Location ID:", process.env.SQUARE_LOCATION_ID);
+    
     // Initialize Square client
     const squareClient = new Client({
       accessToken: process.env.SQUARE_ACCESS_TOKEN,
       environment: Environment.Production
     });
 
+    console.log("Square client initialized");
     const catalogApi = squareClient.catalogApi;
     
-    // Get first 10 catalog items
+    // Test with a simple API call that doesn't return BigInt values
+    console.log("Getting merchant info");
+    const merchantApi = squareClient.merchantsApi;
+    const merchantResponse = await merchantApi.retrieveMerchant("me");
+    
+    console.log("Merchant info retrieved");
+    const merchantInfo = merchantResponse.result.merchant;
+    
+    // Get first 10 catalog items - avoiding BigInt issues
+    console.log("Getting catalog info");
     const catalogResponse = await catalogApi.listCatalog(
       undefined,
       "ITEM"
     );
     
-    // Extract simplified info
-    const itemSummaries = [];
-    if (catalogResponse.result.objects) {
-      catalogResponse.result.objects.slice(0, 10).forEach(item => {
-        if (item.type === 'ITEM' && item.itemData) {
-          const variations = [];
-          
-          if (item.itemData.variations) {
-            item.itemData.variations.forEach(variation => {
-              if (variation.itemVariationData) {
-                variations.push({
-                  id: variation.id,
-                  name: variation.itemVariationData.name,
-                  sku: variation.itemVariationData.sku || null,
-                  price: variation.itemVariationData.priceMoney ? 
-                    variation.itemVariationData.priceMoney.amount / 100 : 0
-                });
-              }
-            });
-          }
-          
-          itemSummaries.push({
-            id: item.id,
-            name: item.itemData.name,
-            description: item.itemData.description || "",
-            variations: variations
-          });
+    console.log("Catalog response received");
+    
+    // Safe stringify function to handle BigInt values
+    const safeStringify = (obj) => {
+      return JSON.stringify(obj, (key, value) => {
+        // Convert any BigInt to string
+        if (typeof value === 'bigint') {
+          return value.toString();
         }
+        return value;
       });
-    }
+    };
+    
+    // Count items without processing them
+    const itemCount = catalogResponse.result.objects ? 
+      catalogResponse.result.objects.filter(obj => obj.type === 'ITEM').length : 0;
+    
+    console.log(`Found ${itemCount} catalog items`);
     
     return {
       statusCode: 200,
       headers,
       body: JSON.stringify({
         success: true,
-        total_items: catalogResponse.result.objects ? catalogResponse.result.objects.length : 0,
-        samples: itemSummaries,
-        message: "This shows a sample of your Square catalog items. Use this to see how your items are structured."
+        merchant: {
+          id: merchantInfo.id,
+          businessName: merchantInfo.businessName,
+          country: merchantInfo.country,
+          languageCode: merchantInfo.languageCode
+        },
+        catalogSummary: {
+          totalItems: itemCount,
+          message: "Your Square account is connected successfully!"
+        }
       })
     };
   } catch (error) {
-    console.error("Error fetching catalog:", error);
+    console.error("Error in catalog test:", error);
     
     return {
       statusCode: 200,
