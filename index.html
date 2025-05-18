@@ -2582,6 +2582,25 @@ function processInventoryData() {
     document.getElementById('loading-inventory').classList.add('hidden');
   }
 }
-  </script>
+<script>
+  // Force live mode
+  document.addEventListener('DOMContentLoaded', function() {
+    // Set live mode indicator
+    const demoBadge = document.querySelector('.demo-badge');
+    if (demoBadge) {
+      demoBadge.textContent = 'Live Mode';
+      demoBadge.style.backgroundColor = '#4CAF50';
+    }
+    
+    // Update info message
+    const infoMessage = document.querySelector('.message.info');
+    if (infoMessage) {
+      infoMessage.innerHTML = `
+        <p><strong>Live Mode Active</strong> - This version is connected to your Square account.
+        Inventory data is loaded from Square and updates will affect your actual inventory.</p>
+      `;
+    }
+  });
+</script>
 </body>
 </html>
